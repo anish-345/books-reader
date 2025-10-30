@@ -1,0 +1,33 @@
+# Add these optimizations to android/app/build.gradle
+
+android {
+    buildTypes {
+        release {
+            // Enable code shrinking, obfuscation, and optimization
+            minifyEnabled true
+            shrinkResources true
+            
+            // Use ProGuard for additional optimization
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            
+            // Enable R8 full mode for better optimization
+            proguardFiles 'proguard-rules.pro'
+        }
+    }
+    
+    // Split APKs by ABI to reduce size
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'arm64-v8a', 'armeabi-v7a'
+            universalApk false
+        }
+    }
+    
+    // Compress native libraries
+    packagingOptions {
+        doNotStrip '*/arm64-v8a/libflutter.so'
+        doNotStrip '*/armeabi-v7a/libflutter.so'
+    }
+}
