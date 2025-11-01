@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
 
 class PermissionService {
@@ -9,33 +8,22 @@ class PermissionService {
     }
 
     try {
-      debugPrint('🔐 Requesting storage permissions...');
-
       // Try MANAGE_EXTERNAL_STORAGE first (Android 11+) for full access
       try {
         final manageStatus = await ph.Permission.manageExternalStorage
             .request();
         if (manageStatus.isGranted) {
-          debugPrint(
-            '✅ MANAGE_EXTERNAL_STORAGE permission granted - full access!',
-          );
           return true;
         }
-        debugPrint('⚠️ MANAGE_EXTERNAL_STORAGE denied');
       } catch (e) {
-        debugPrint('⚠️ MANAGE_EXTERNAL_STORAGE not available: $e');
+        // Silent error handling
       }
 
       // Try basic storage permission
       final storageStatus = await ph.Permission.storage.request();
       if (storageStatus.isGranted) {
-        debugPrint('✅ Basic storage permission granted');
         return true;
       }
-
-      debugPrint(
-        '⚠️ Basic storage permission denied, trying media permissions...',
-      );
 
       // Try media permissions for Android 13+
       try {
@@ -49,17 +37,14 @@ class PermissionService {
           (s) => s.isGranted,
         );
         if (hasAnyMediaPermission) {
-          debugPrint('✅ Media permissions granted');
           return true;
         }
       } catch (e) {
-        debugPrint('⚠️ Media permissions not available: $e');
+        // Silent error handling
       }
 
-      debugPrint('❌ No storage permissions granted - limited file access');
       return false;
     } catch (e) {
-      debugPrint('❌ Permission request error: $e');
       return false;
     }
   }
@@ -77,7 +62,7 @@ class PermissionService {
           return true;
         }
       } catch (e) {
-        debugPrint('⚠️ MANAGE_EXTERNAL_STORAGE check failed: $e');
+        // Silent error handling
       }
 
       // Check basic storage permission
@@ -101,12 +86,11 @@ class PermissionService {
           return true;
         }
       } catch (e) {
-        debugPrint('⚠️ Media permissions check failed: $e');
+        // Silent error handling
       }
 
       return false;
     } catch (e) {
-      debugPrint('❌ Permission check error: $e');
       return false;
     }
   }
@@ -115,7 +99,6 @@ class PermissionService {
     try {
       return await ph.openAppSettings();
     } catch (e) {
-      debugPrint('❌ Error opening app settings: $e');
       return false;
     }
   }

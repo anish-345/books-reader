@@ -39,4 +39,5 @@ flutter {
 }
 
 dependencies {
+    implementation("com.startapp:inapp-sdk:5.0.2")
 }

@@ -38,7 +38,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
           currentPage = page;
         });
       } catch (e) {
-        debugPrint('Error navigating to page $page: $e');
+        // Silent error handling
       }
     }
   }

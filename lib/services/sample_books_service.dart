@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import '../data/models/book_file_v2.dart';
 
@@ -48,7 +47,7 @@ class SampleBooksService {
         sampleBooks.add(book);
       }
     } catch (e) {
-      debugPrint('Error creating sample books: $e');
+      // Silent error handling
     }
 
     return sampleBooks;
@@ -64,7 +63,7 @@ class SampleBooksService {
         await file.writeAsString(_getSampleEpubContent(fileName));
       }
     } catch (e) {
-      debugPrint('Error creating sample file $fileName: $e');
+      // Silent error handling
     }
   }
 
@@ -139,7 +138,7 @@ This is the final chapter of the sample book.''';
 
   static String _extractTitle(String fileName) {
     return fileName
-        .replaceAll(RegExp(r'\.(pdf|epub)$', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\.(pdf|epub)', caseSensitive: false), '')
         .replaceAll('_', ' ')
         .replaceAll('-', ' ')
         .trim();

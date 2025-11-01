@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import '../data/models/book_file_v2.dart';
 
@@ -11,29 +10,20 @@ class FileScannerService {
     final List<BookFileV2> books = [];
 
     try {
-      debugPrint('🚀 Starting comprehensive book scan...');
-
       // Clean up any existing test files first
       await _cleanupTestFiles();
 
       // Get external storage directories
       final directories = await _getSearchDirectories();
-      debugPrint('📂 Will scan ${directories.length} directories');
 
       for (final directory in directories) {
         try {
           if (await directory.exists()) {
-            debugPrint('📁 Scanning: ${directory.path}');
             final foundBooks = await _scanDirectory(directory);
             books.addAll(foundBooks);
-            debugPrint(
-              '📚 Found ${foundBooks.length} books in ${directory.path}',
-            );
-          } else {
-            debugPrint('❌ Directory does not exist: ${directory.path}');
           }
         } catch (e) {
-          debugPrint('⚠️ Error scanning directory ${directory.path}: $e');
+          // Silent error handling
         }
       }
 
@@ -43,14 +33,8 @@ class FileScannerService {
         uniqueBooks[book.path] = book;
       }
 
-      final finalBooks = uniqueBooks.values.toList();
-      debugPrint(
-        '🎉 Scan complete! Found ${finalBooks.length} unique books total',
-      );
-
-      return finalBooks;
+      return uniqueBooks.values.toList();
     } catch (e) {
-      debugPrint('❌ Error scanning for books: $e');
       return [];
     }
   }
@@ -60,24 +44,16 @@ class FileScannerService {
     final List<Directory> directories = [];
 
     try {
-      debugPrint('📁 Getting ALL public directories for comprehensive scan...');
-
       // Get proper external storage paths using path_provider
       try {
         final externalDir = await getExternalStorageDirectory();
         if (externalDir != null) {
-          debugPrint(
-            '✅ External storage from path_provider: ${externalDir.path}',
-          );
-
           // Get the actual external storage root
           final externalRoot = Directory('/storage/emulated/0');
           if (await externalRoot.exists()) {
             directories.add(externalRoot);
-            debugPrint('✅ Added external storage root');
 
             // Scan ALL subdirectories in external storage
-            debugPrint('🔍 Discovering ALL user-accessible subdirectories...');
             await for (final entity in externalRoot.list(followLinks: false)) {
               if (entity is Directory) {
                 try {
@@ -88,23 +64,19 @@ class FileScannerService {
                       dirName != 'lost+found' &&
                       !dirName.contains('cache')) {
                     directories.add(entity);
-                    debugPrint('✅ Added user directory: ${entity.path}');
                   }
                 } catch (e) {
-                  debugPrint('⚠️ Error checking directory ${entity.path}: $e');
+                  // Silent error handling
                 }
               }
             }
           }
         }
       } catch (e) {
-        debugPrint('⚠️ Error getting external storage paths: $e');
-
         // Fallback to hardcoded path
         final fallbackStorage = Directory('/storage/emulated/0');
         if (await fallbackStorage.exists()) {
           directories.add(fallbackStorage);
-          debugPrint('✅ Added fallback external storage');
         }
       }
 
@@ -134,16 +106,13 @@ class FileScannerService {
           final dir = Directory(path);
           if (await dir.exists() && !directories.any((d) => d.path == path)) {
             directories.add(dir);
-            debugPrint('✅ Added common path: $path');
           }
         } catch (e) {
-          debugPrint('⚠️ Error checking common path $path: $e');
+          // Silent error handling
         }
       }
-
-      debugPrint('📂 Total directories to scan: ${directories.length}');
     } catch (e) {
-      debugPrint('❌ Error getting search directories: $e');
+      // Silent error handling
     }
 
     return directories;
@@ -154,15 +123,10 @@ class FileScannerService {
     final List<BookFileV2> books = [];
 
     try {
-      debugPrint('🔍 Scanning directory: ${directory.path}');
-      int fileCount = 0;
-
       await for (final entity in directory.list(
         recursive: false, // Non-recursive to avoid permission issues
         followLinks: false,
       )) {
-        fileCount++;
-
         if (entity is File) {
           final extension = _getFileExtension(entity.path).toLowerCase();
 
@@ -181,9 +145,8 @@ class FileScannerService {
                 author: _extractAuthorFromPath(entity.path),
               );
               books.add(book);
-              debugPrint('📖 Found book: ${book.name} (${book.sizeFormatted})');
             } catch (e) {
-              debugPrint('⚠️ Error processing file ${entity.path}: $e');
+              // Silent error handling
             }
           }
         } else if (entity is Directory) {
@@ -194,7 +157,6 @@ class FileScannerService {
               !dirName.contains('cache') &&
               dirName != 'lost+found') {
             try {
-              debugPrint('📂 Recursively scanning: ${entity.path}');
               final subBooks = await _scanDirectoryRecursive(
                 entity,
                 0,
@@ -202,17 +164,13 @@ class FileScannerService {
               ); // Max 2 levels deep
               books.addAll(subBooks);
             } catch (e) {
-              debugPrint('⚠️ Error scanning subdirectory ${entity.path}: $e');
+              // Silent error handling
             }
           }
         }
       }
-
-      debugPrint(
-        '📚 Scanned $fileCount items, found ${books.length} books in ${directory.path}',
-      );
     } catch (e) {
-      debugPrint('❌ Error scanning directory ${directory.path}: $e');
+      // Silent error handling
     }
 
     return books;
@@ -227,7 +185,6 @@ class FileScannerService {
     final List<BookFileV2> books = [];
 
     if (currentDepth >= maxDepth) {
-      debugPrint('⚠️ Max depth reached for ${directory.path}');
       return books;
     }
 
@@ -254,9 +211,8 @@ class FileScannerService {
                 author: _extractAuthorFromPath(entity.path),
               );
               books.add(book);
-              debugPrint('📖 Found book (depth $currentDepth): ${book.name}');
             } catch (e) {
-              debugPrint('⚠️ Error processing file ${entity.path}: $e');
+              // Silent error handling
             }
           }
         } else if (entity is Directory) {
@@ -274,13 +230,13 @@ class FileScannerService {
               );
               books.addAll(subBooks);
             } catch (e) {
-              debugPrint('⚠️ Error in recursive scan of ${entity.path}: $e');
+              // Silent error handling
             }
           }
         }
       }
     } catch (e) {
-      debugPrint('⚠️ Error in recursive scan of ${directory.path}: $e');
+      // Silent error handling
     }
 
     return books;
@@ -309,7 +265,7 @@ class FileScannerService {
   static String _extractTitle(String filePath) {
     final fileName = _getFileName(filePath);
     final nameWithoutExtension = fileName.replaceAll(
-      RegExp(r'\.(pdf|epub)$', caseSensitive: false),
+      RegExp(r'\.(pdf|epub)', caseSensitive: false),
       '',
     );
 
@@ -325,7 +281,7 @@ class FileScannerService {
   static String? _extractAuthorFromPath(String filePath) {
     final fileName = _getFileName(filePath);
     final nameWithoutExtension = fileName.replaceAll(
-      RegExp(r'\.(pdf|epub)$', caseSensitive: false),
+      RegExp(r'\.(pdf|epub)', caseSensitive: false),
       '',
     );
 
@@ -380,7 +336,7 @@ class FileScannerService {
         return await _scanDirectory(directory);
       }
     } catch (e) {
-      debugPrint('Error scanning specific directory $directoryPath: $e');
+      // Silent error handling
     }
     return [];
   }
@@ -388,8 +344,6 @@ class FileScannerService {
   /// Clean up test files that might have been created
   static Future<void> _cleanupTestFiles() async {
     try {
-      debugPrint('🧹 Cleaning up any test files...');
-
       final testFiles = [
         '/storage/emulated/0/Download/Test_Book.pdf',
         '/storage/emulated/0/Download/Sample_Book.epub',
@@ -404,14 +358,13 @@ class FileScannerService {
           final file = File(filePath);
           if (await file.exists()) {
             await file.delete();
-            debugPrint('🗑️ Deleted test file: $filePath');
           }
         } catch (e) {
-          debugPrint('⚠️ Could not delete test file $filePath: $e');
+          // Silent error handling
         }
       }
     } catch (e) {
-      debugPrint('⚠️ Error cleaning up test files: $e');
+      // Silent error handling
     }
   }
 }

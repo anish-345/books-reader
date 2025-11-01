@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/book_file.dart';
 import 'permission_service.dart';
@@ -19,10 +18,8 @@ class FileService {
       // Get public directories for scanning
       final directories = await _getPublicDirectories();
 
-      debugPrint('Found ${directories.length} unique directories to scan');
       for (final directory in directories) {
         if (await directory.exists()) {
-          debugPrint('Scanning directory: ${directory.path}');
           await _scanDirectory(directory, books, seenPaths, seenFiles);
         }
       }
@@ -32,14 +29,12 @@ class FileService {
         books.addAll(_getSampleBooks());
       }
     } catch (e) {
-      debugPrint('Error scanning for books: $e');
       // Add sample books if scanning fails only if no books were found
       if (books.isEmpty) {
         books.addAll(_getSampleBooks());
       }
     }
 
-    debugPrint('Total unique books found: ${books.length}');
     return books;
   }
 
@@ -118,7 +113,7 @@ class FileService {
             }
           }
         } catch (e) {
-          debugPrint('Error accessing external storage: $e');
+          // Silent error handling
         }
       }
 
@@ -131,10 +126,10 @@ class FileService {
           directories.add(Directory(resolvedPath));
         }
       } catch (e) {
-        debugPrint('Error accessing app documents directory: $e');
+        // Silent error handling
       }
     } catch (e) {
-      debugPrint('Error getting public directories: $e');
+      // Silent error handling
     }
 
     return directories;
@@ -174,7 +169,6 @@ class FileService {
 
               // Skip if we've already seen this file (by name and size)
               if (seenFiles.contains(fileIdentifier)) {
-                debugPrint('Skipping duplicate file: $actualFileName');
                 continue;
               }
 
@@ -189,15 +183,14 @@ class FileService {
               books.add(bookFile);
               seenPaths.add(entity.path);
               seenFiles.add(fileIdentifier);
-              debugPrint('Added unique book: ${bookFile.name}');
             } catch (e) {
-              debugPrint('Error processing file ${entity.path}: $e');
+              // Silent error handling
             }
           }
         }
       }
     } catch (e) {
-      debugPrint('Error scanning directory ${directory.path}: $e');
+      // Silent error handling
     }
   }
 }

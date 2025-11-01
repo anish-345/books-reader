@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:epubx/epubx.dart';
 
@@ -13,9 +12,6 @@ class EpubParserService {
 
       // Handle content URIs and regular file paths differently
       if (filePath.startsWith('content://')) {
-        debugPrint(
-          'Processing EPUB from content URI (file manager): $filePath',
-        );
         try {
           // Copy content URI to cache file for EPUB processing
           // This is only for files opened from file manager
@@ -27,34 +23,23 @@ class EpubParserService {
             final cacheFile = File(result);
             if (await cacheFile.exists()) {
               bytes = await cacheFile.readAsBytes();
-              debugPrint('Successfully read EPUB from cache: $result');
             } else {
-              debugPrint('Cache file does not exist: $result');
               return null;
             }
           } else {
-            debugPrint(
-              'Failed to copy content URI to cache: Invalid response type',
-            );
             return null;
           }
         } catch (e) {
-          debugPrint('Error copying content URI to cache: $e');
           return null;
         }
       } else {
         // Handle regular file paths (from app home screen)
         // No caching needed - read directly
-        debugPrint(
-          'Processing EPUB from regular file path (home screen): $filePath',
-        );
         final file = File(filePath);
         if (!await file.exists()) {
-          debugPrint('EPUB file does not exist: $filePath');
           return null;
         }
         bytes = await file.readAsBytes();
-        debugPrint('Successfully read EPUB directly from file system');
       }
 
       final epubBook = await EpubReader.readBook(bytes);
@@ -109,7 +94,6 @@ class EpubParserService {
         chapters: chapters,
       );
     } catch (e) {
-      debugPrint('Error parsing EPUB file $filePath: $e');
       return EpubBookData(
         title: 'Error Loading Book',
         author: 'Unknown',

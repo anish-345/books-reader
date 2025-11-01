@@ -54,7 +54,6 @@ class _HomeScreenState extends State<HomeScreen> {
         isLoading = false;
       });
     } catch (e) {
-      debugPrint('Error loading books: $e');
       setState(() {
         books = [];
         isLoading = false;

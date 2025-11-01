@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/models/book_file_v2.dart';
 import '../data/models/reading_progress.dart';
@@ -36,7 +35,7 @@ class ReadingHistoryService {
 
       await prefs.setString(_historyKey, jsonEncode(historyList));
     } catch (e) {
-      debugPrint('Error adding to history: $e');
+      // Silent error handling
     }
   }
 
@@ -60,7 +59,6 @@ class ReadingHistoryService {
         );
       }).toList();
     } catch (e) {
-      debugPrint('Error getting history: $e');
       return [];
     }
   }
@@ -71,7 +69,7 @@ class ReadingHistoryService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_historyKey);
     } catch (e) {
-      debugPrint('Error clearing history: $e');
+      // Silent error handling
     }
   }
 
@@ -86,7 +84,7 @@ class ReadingHistoryService {
 
       await prefs.setString(_historyKey, jsonEncode(historyList));
     } catch (e) {
-      debugPrint('Error removing from history: $e');
+      // Silent error handling
     }
   }
 
@@ -101,7 +99,7 @@ class ReadingHistoryService {
 
       await prefs.setString(_progressKey, jsonEncode(progressMap));
     } catch (e) {
-      debugPrint('Error saving progress: $e');
+      // Silent error handling
     }
   }
 
@@ -117,7 +115,7 @@ class ReadingHistoryService {
         return ReadingProgress.fromJson(data);
       }
     } catch (e) {
-      debugPrint('Error getting progress: $e');
+      // Silent error handling
     }
     return null;
   }
@@ -137,7 +135,6 @@ class ReadingHistoryService {
 
       return result;
     } catch (e) {
-      debugPrint('Error getting all progress: $e');
       return {};
     }
   }
@@ -163,7 +160,6 @@ class ReadingHistoryService {
 
       return recentBooks.take(10).toList(); // Return top 10 recent books
     } catch (e) {
-      debugPrint('Error getting recently read books: $e');
       return [];
     }
   }
@@ -198,7 +194,6 @@ class ReadingHistoryService {
             : 0.0,
       };
     } catch (e) {
-      debugPrint('Error getting reading stats: $e');
       return {
         'totalBooksRead': 0,
         'totalReadingTimeMinutes': 0,

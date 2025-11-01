@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
 
 import 'core/constants/app_constants.dart';
 import 'core/theme/app_theme.dart';
@@ -9,6 +10,7 @@ import 'presentation/screens/onboarding/onboarding_screen_v2.dart';
 import 'presentation/screens/home/home_screen_v2.dart';
 import 'services/permission_service.dart';
 import 'services/intent_handler_service.dart';
+import 'services/startapp_ad_service.dart';
 
 // Global navigator key for intent handling
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -17,13 +19,22 @@ void main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
 
+    // Initialize StartApp ads asynchronously (Android only) - non-blocking
+    if (Platform.isAndroid) {
+      StartAppAdService().initialize().catchError((e) {
+        // Silent error handling
+      });
+    }
+
     // Initialize intent handler with navigator key
     IntentHandlerService.initialize(navigatorKey: navigatorKey);
 
-    // Set preferred orientations
+    // Allow all orientations (portrait and landscape)
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
     ]);
 
     // Set system UI overlay style
@@ -38,7 +49,6 @@ void main() async {
 
     runApp(const PDFEpubReaderV2());
   } catch (e) {
-    debugPrint('Main initialization error: $e');
     runApp(const PDFEpubReaderV2());
   }
 }
@@ -100,7 +110,6 @@ class _AppInitializerState extends State<AppInitializer> {
       await Future.delayed(const Duration(milliseconds: 500));
       await IntentHandlerService.checkPendingIntents();
     } catch (e) {
-      debugPrint('App initialization error: $e');
       // If there's an error, still go to home
       setState(() {
         _isInitializing = false;
@@ -112,7 +121,7 @@ class _AppInitializerState extends State<AppInitializer> {
     try {
       await PermissionService.requestStoragePermission();
     } catch (e) {
-      debugPrint('Error requesting permissions: $e');
+      // Silent error handling
     }
   }
 
@@ -130,9 +139,7 @@ class _AppInitializerState extends State<AppInitializer> {
 // Global error handler
 class AppErrorHandler {
   static void handleError(Object error, StackTrace stackTrace) {
-    // Log error for debugging
-    debugPrint('App Error: $error');
-    debugPrint('Stack Trace: $stackTrace');
+    // Silent error handling for production
   }
 }
 

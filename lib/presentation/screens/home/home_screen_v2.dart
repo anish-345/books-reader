@@ -8,7 +8,8 @@ import '../../../services/file_scanner_service.dart';
 import '../../../services/reading_history_service.dart';
 import '../../../services/permission_service.dart';
 import '../../../services/sample_books_service.dart';
-
+import '../../../widgets/startapp_banner_widget.dart';
+import '../../../widgets/startapp_native_widget.dart';
 import '../reader/book_reader_screen.dart';
 
 class HomeScreenV2 extends StatefulWidget {
@@ -72,7 +73,7 @@ class _HomeScreenV2State extends State<HomeScreenV2> {
         _recentBooks = recentBooks;
       });
     } catch (e) {
-      debugPrint('Error loading books: $e');
+      // Silent error handling
     }
   }
 
@@ -116,27 +117,37 @@ class _HomeScreenV2State extends State<HomeScreenV2> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _screens[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-          // Auto-refresh recent books when Recent tab is selected
-          if (index == 1) {
-            _refreshRecentBooks();
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.library_books),
-            label: 'Library',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Recent'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bookmark),
-            label: 'Bookmarks',
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // StartApp Banner Ad
+          const StartAppBannerWidget(),
+          BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            currentIndex: _selectedIndex,
+            onTap: (index) {
+              setState(() {
+                _selectedIndex = index;
+              });
+              // Auto-refresh recent books when Recent tab is selected
+              if (index == 1) {
+                _refreshRecentBooks();
+              }
+            },
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.library_books),
+                label: 'Library',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.history),
+                label: 'Recent',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.bookmark),
+                label: 'Bookmarks',
+              ),
+            ],
           ),
         ],
       ),
@@ -184,6 +195,7 @@ class _LibraryTabState extends State<LibraryTab> {
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () async {
+              // Open search directly without ad (for better UX)
               final navigator = Navigator.of(context);
               final selectedBook = await showSearch(
                 context: context,
@@ -238,7 +250,7 @@ class _LibraryTabState extends State<LibraryTab> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: Colors.blue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Column(
@@ -315,13 +327,43 @@ class _LibraryTabState extends State<LibraryTab> {
       },
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: books.length,
+        itemCount: _getListItemCount(books.length),
         itemBuilder: (context, index) {
-          final book = books[index];
+          // Show native ad every 5 books
+          if (_shouldShowNativeAd(index)) {
+            return StartAppNativeWidget(index: index);
+          }
+
+          // Calculate actual book index (accounting for ads)
+          final bookIndex = _getBookIndex(index);
+          if (bookIndex >= books.length) return const SizedBox.shrink();
+
+          final book = books[bookIndex];
           return _buildBookCard(book);
         },
       ),
     );
+  }
+
+  // Calculate total items including ads
+  int _getListItemCount(int bookCount) {
+    if (bookCount == 0) return 0;
+    // Add one ad for every 5 books
+    final adCount = (bookCount / 5).floor();
+    return bookCount + adCount;
+  }
+
+  // Check if this position should show a native ad
+  bool _shouldShowNativeAd(int index) {
+    // Show ad at positions 5, 11, 17, 23, etc. (after every 5 books)
+    return (index + 1) % 6 == 0;
+  }
+
+  // Get the actual book index from list index
+  int _getBookIndex(int listIndex) {
+    // Calculate how many ads appear before this position
+    final adsBeforeThis = (listIndex / 6).floor();
+    return listIndex - adsBeforeThis;
   }
 
   Widget _buildBookCard(BookFileV2 book) {
@@ -516,13 +558,40 @@ class _RecentTabState extends State<RecentTab> {
       },
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: books.length,
+        itemCount: _getListItemCount(books.length),
         itemBuilder: (context, index) {
-          final book = books[index];
+          // Show native ad every 5 books
+          if (_shouldShowNativeAd(index)) {
+            return StartAppNativeWidget(index: index);
+          }
+
+          // Calculate actual book index (accounting for ads)
+          final bookIndex = _getBookIndex(index);
+          if (bookIndex >= books.length) return const SizedBox.shrink();
+
+          final book = books[bookIndex];
           return _buildRecentBookCard(book);
         },
       ),
     );
+  }
+
+  // Calculate total items including ads
+  int _getListItemCount(int bookCount) {
+    if (bookCount == 0) return 0;
+    final adCount = (bookCount / 5).floor();
+    return bookCount + adCount;
+  }
+
+  // Check if this position should show a native ad
+  bool _shouldShowNativeAd(int index) {
+    return (index + 1) % 6 == 0;
+  }
+
+  // Get the actual book index from list index
+  int _getBookIndex(int listIndex) {
+    final adsBeforeThis = (listIndex / 6).floor();
+    return listIndex - adsBeforeThis;
   }
 
   Widget _buildRecentBookCard(BookFileV2 book) {
@@ -706,6 +775,7 @@ class _BookmarksTabState extends State<BookmarksTab> {
             IconButton(
               icon: const Icon(Icons.search),
               onPressed: () async {
+                // Open bookmark search directly without ad (for better UX)
                 final selectedBookmark = await showSearch(
                   context: context,
                   delegate: BookmarkSearchDelegate(_bookmarks),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
@@ -9,6 +10,8 @@ import '../../../data/models/bookmark.dart';
 import '../../../data/models/reading_progress.dart';
 import '../../../services/bookmark_service.dart';
 import '../../../services/reading_history_service.dart';
+import '../../../services/startapp_ad_service.dart';
+import '../../../widgets/startapp_banner_widget.dart';
 
 class PDFReaderScreen extends StatefulWidget {
   final BookFileV2 book;
@@ -42,6 +45,11 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
     }
     _checkBookmarkStatus();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+    // Preload interstitial ad for when user exits (Android only)
+    if (Platform.isAndroid) {
+      StartAppAdService().loadInterstitialAd();
+    }
   }
 
   @override
@@ -49,6 +57,12 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
     _hideControlsTimer?.cancel();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _saveProgress();
+
+    // Show interstitial ad when exiting reader (Android only)
+    if (Platform.isAndroid) {
+      StartAppAdService().showInterstitialAd();
+    }
+
     super.dispose();
   }
 
@@ -216,12 +230,10 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
             child: PDFView(
               filePath: widget.book.path,
               enableSwipe: true,
-              swipeHorizontal:
-                  isLandscape, // Horizontal in landscape, vertical in portrait
+              swipeHorizontal: false, // Always vertical scrolling
               autoSpacing: false, // No gaps between pages
               pageFling: false, // Smooth scrolling instead of page flinging
-              pageSnap:
-                  isLandscape, // Page snap in landscape for better navigation
+              pageSnap: false, // Smooth scrolling in all orientations
               defaultPage: _currentPage - 1,
               fitPolicy: isLandscape
                   ? FitPolicy.BOTH
@@ -244,10 +256,10 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
                 _checkBookmarkStatus();
               },
               onError: (error) {
-                debugPrint('PDF Error: $error');
+                // Silent error handling
               },
               onPageError: (page, error) {
-                debugPrint('PDF Page Error: $page - $error');
+                // Silent error handling
               },
             ),
           ),
@@ -347,173 +359,83 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
               ),
             ),
 
-          // Page slider - vertical on right in portrait, horizontal at bottom in landscape
+          // Page slider - always vertical on right side (both portrait and landscape)
           if (_showControls && _isReady)
-            isLandscape
-                ? Positioned(
-                    bottom: 16,
-                    left: 100,
-                    right: 100,
-                    child: Container(
-                      height: 60,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: Row(
-                        children: [
-                          // Current page number at left
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '$_currentPage',
-                              style: AppTextStyles.labelSmall.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(width: 16),
-
-                          // Horizontal slider
-                          Expanded(
-                            child: SliderTheme(
-                              data: SliderTheme.of(context).copyWith(
-                                trackHeight: 6,
-                                thumbShape: const RoundSliderThumbShape(
-                                  enabledThumbRadius: 12,
-                                ),
-                                overlayShape: const RoundSliderOverlayShape(
-                                  overlayRadius: 0,
-                                ),
-                              ),
-                              child: Slider(
-                                value: _currentPage.toDouble(),
-                                min: 1,
-                                max: _totalPages.toDouble(),
-                                divisions: _totalPages > 1
-                                    ? _totalPages - 1
-                                    : 1,
-                                activeColor: AppColors.primary,
-                                inactiveColor: Colors.white.withValues(
-                                  alpha: 0.3,
-                                ),
-                                thumbColor: Colors.white,
-                                onChanged: (value) {
-                                  _goToPage(value.round());
-                                  _startHideControlsTimer(); // Reset auto-hide timer
-                                },
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(width: 16),
-
-                          // Total pages at right
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '$_totalPages',
-                              style: AppTextStyles.labelSmall.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
+            Positioned(
+              right: 16,
+              top: 100,
+              bottom: 100,
+              child: Container(
+                width: 60,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Column(
+                  children: [
+                    // Current page number at top
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        '$_currentPage',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  )
-                : Positioned(
-                    right: 16,
-                    top: 100,
-                    bottom: 100,
-                    child: Container(
-                      width: 60,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: Column(
-                        children: [
-                          // Current page number at top
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Text(
-                              '$_currentPage',
-                              style: AppTextStyles.labelSmall.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
 
-                          // Vertical slider
-                          Expanded(
-                            child: SliderTheme(
-                              data: SliderTheme.of(context).copyWith(
-                                trackHeight: 6,
-                                thumbShape: const RoundSliderThumbShape(
-                                  enabledThumbRadius: 12,
-                                ),
-                                overlayShape: const RoundSliderOverlayShape(
-                                  overlayRadius: 0,
-                                ),
-                              ),
-                              child: RotatedBox(
-                                quarterTurns:
-                                    1, // Rotate slider to be vertical (top to bottom)
-                                child: Slider(
-                                  value: _currentPage.toDouble(),
-                                  min: 1,
-                                  max: _totalPages.toDouble(),
-                                  divisions: _totalPages > 1
-                                      ? _totalPages - 1
-                                      : 1,
-                                  activeColor: AppColors.primary,
-                                  inactiveColor: Colors.white.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                  thumbColor: Colors.white,
-                                  onChanged: (value) {
-                                    _goToPage(value.round());
-                                    _startHideControlsTimer(); // Reset auto-hide timer
-                                  },
-                                ),
-                              ),
-                            ),
+                    // Vertical slider
+                    Expanded(
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 6,
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 12,
                           ),
-
-                          // Total pages at bottom
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Text(
-                              '$_totalPages',
-                              style: AppTextStyles.labelSmall.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                          overlayShape: const RoundSliderOverlayShape(
+                            overlayRadius: 0,
                           ),
-                        ],
+                        ),
+                        child: RotatedBox(
+                          quarterTurns:
+                              1, // Rotate slider to be vertical (top to bottom)
+                          child: Slider(
+                            value: _currentPage.toDouble(),
+                            min: 1,
+                            max: _totalPages.toDouble(),
+                            divisions: _totalPages > 1 ? _totalPages - 1 : 1,
+                            activeColor: AppColors.primary,
+                            inactiveColor: Colors.white.withValues(alpha: 0.3),
+                            thumbColor: Colors.white,
+                            onChanged: (value) {
+                              _goToPage(value.round());
+                              _startHideControlsTimer(); // Reset auto-hide timer
+                            },
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+
+                    // Total pages at bottom
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        '$_totalPages',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
+      // Banner ad at bottom (only shows when controls are hidden for clean reading)
+      bottomNavigationBar: !_showControls ? const StartAppBannerWidget() : null,
     );
   }
 

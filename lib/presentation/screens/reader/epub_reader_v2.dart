@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_html/flutter_html.dart';
@@ -7,6 +8,8 @@ import '../../../data/models/book_file_v2.dart';
 import '../../../data/models/reading_progress.dart';
 import '../../../services/reading_history_service.dart';
 import '../../../services/epub_parser_service.dart';
+import '../../../services/startapp_ad_service.dart';
+import '../../../widgets/startapp_banner_widget.dart';
 
 class EpubReaderV2 extends StatefulWidget {
   final BookFileV2 book;
@@ -36,6 +39,11 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
     super.initState();
     _loadEpubFile();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+    // Preload interstitial ad for when user exits (Android only)
+    if (Platform.isAndroid) {
+      StartAppAdService().loadInterstitialAd();
+    }
   }
 
   @override
@@ -43,16 +51,17 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _saveProgress();
     _pageController.dispose();
+
+    // Show interstitial ad when exiting reader (Android only)
+    if (Platform.isAndroid) {
+      StartAppAdService().showInterstitialAd();
+    }
+
     super.dispose();
   }
 
   Future<void> _loadEpubFile() async {
     try {
-      debugPrint('=== EPUB READER DEBUG ===');
-      debugPrint('Loading EPUB file: ${widget.book.path}');
-      debugPrint('Book type: ${widget.book.type}');
-      debugPrint('Book name: ${widget.book.name}');
-
       setState(() {
         _isLoading = true;
         _errorMessage = '';
@@ -61,16 +70,6 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
       final epubData = await EpubParserService.parseEpubFile(widget.book.path);
 
       if (epubData != null) {
-        debugPrint('EPUB parsed successfully');
-        debugPrint('Title: ${epubData.title}');
-        debugPrint('Author: ${epubData.author}');
-        debugPrint('Chapters found: ${epubData.chapters.length}');
-
-        for (int i = 0; i < epubData.chapters.length && i < 3; i++) {
-          debugPrint('Chapter ${i + 1}: ${epubData.chapters[i].title}');
-          debugPrint('Content length: ${epubData.chapters[i].content.length}');
-        }
-
         setState(() {
           _epubBook = epubData;
           _chapters = epubData.chapters;
@@ -80,14 +79,12 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
         // Load reading progress after chapters are loaded
         await _loadReadingProgress();
       } else {
-        debugPrint('EPUB parsing returned null');
         setState(() {
           _errorMessage = 'Failed to load EPUB file - parser returned null';
           _isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint('EPUB loading error: $e');
       setState(() {
         _errorMessage = 'Error loading EPUB: $e';
         _isLoading = false;
@@ -292,6 +289,8 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
             ),
         ],
       ),
+      // Banner ad at bottom (only shows when controls are hidden for clean reading)
+      bottomNavigationBar: !_showControls ? const StartAppBannerWidget() : null,
     );
   }
 

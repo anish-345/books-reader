@@ -20,7 +20,7 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
 
@@ -43,7 +43,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _startAnimation() async {
     await _animationController.forward();
-    await Future.delayed(const Duration(milliseconds: 1000));
+    await Future.delayed(const Duration(milliseconds: 500));
 
     if (mounted) {
       _navigateToApp();
