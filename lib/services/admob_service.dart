@@ -7,10 +7,10 @@ class AdMobService {
   factory AdMobService() => _instance;
   AdMobService._internal();
 
-  // Ad Unit IDs (using test IDs - replace with your actual IDs from AdMob console)
+  // Ad Unit IDs (Real AdMob IDs - Production)
   static String get bannerAdUnitId => Platform.isAndroid
-      ? 'ca-app-pub-3940256099942544/6300978111' // Test Banner
-      : 'ca-app-pub-3940256099942544/2934735716'; // Test Banner iOS
+      ? 'ca-app-pub-2743584570741087/9777420305' // Real Banner Android
+      : 'ca-app-pub-3940256099942544/2934735716'; // Test Banner iOS (update when you have iOS ID)
 
   static String get interstitialAdUnitId => Platform.isAndroid
       ? 'ca-app-pub-3940256099942544/1033173712' // Test Interstitial
