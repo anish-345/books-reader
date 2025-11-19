@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
@@ -10,8 +9,8 @@ import '../../../data/models/bookmark.dart';
 import '../../../data/models/reading_progress.dart';
 import '../../../services/bookmark_service.dart';
 import '../../../services/reading_history_service.dart';
-import '../../../services/startapp_ad_service.dart';
-import '../../../widgets/startapp_banner_widget.dart';
+import '../../../services/ad_frequency_service.dart';
+import '../../../widgets/admob_banner_widget.dart';
 
 class PDFReaderScreen extends StatefulWidget {
   final BookFileV2 book;
@@ -45,11 +44,6 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
     }
     _checkBookmarkStatus();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-
-    // Preload interstitial ad for when user exits (Android only)
-    if (Platform.isAndroid) {
-      StartAppAdService().loadInterstitialAd();
-    }
   }
 
   @override
@@ -58,10 +52,8 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _saveProgress();
 
-    // Show interstitial ad when exiting reader (Android only)
-    if (Platform.isAndroid) {
-      StartAppAdService().showInterstitialAd();
-    }
+    // Show interstitial ad when exiting reader (time-based, non-intrusive)
+    AdFrequencyService().onReaderExit();
 
     super.dispose();
   }
@@ -435,7 +427,7 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
         ],
       ),
       // Banner ad at bottom (only shows when controls are hidden for clean reading)
-      bottomNavigationBar: !_showControls ? const StartAppBannerWidget() : null,
+      bottomNavigationBar: !_showControls ? const AdMobBannerWidget() : null,
     );
   }
 

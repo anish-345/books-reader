@@ -23,6 +23,10 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
+        <!-- AdMob App ID -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713"/>
 
         <activity
             android:name=".MainActivity"
@@ -108,14 +112,5 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        
-        <!-- StartApp App ID -->
-        <meta-data
-            android:name="com.startapp.sdk.APPLICATION_ID"
-            android:value="209362856" />
-            
-
-            
-
     </application>
 </manifest>

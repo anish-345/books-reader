@@ -46,8 +46,8 @@ dependencies:
   # Essential utilities
   archive: ^3.6.1
   
-  # Ads (Android only)
-  startapp_sdk: ^1.0.1
+  # Ads
+  google_mobile_ads: ^5.2.0
   
 
   

@@ -8,8 +8,7 @@ import '../../../services/file_scanner_service.dart';
 import '../../../services/reading_history_service.dart';
 import '../../../services/permission_service.dart';
 import '../../../services/sample_books_service.dart';
-import '../../../widgets/startapp_banner_widget.dart';
-import '../../../widgets/startapp_native_widget.dart';
+import '../../../widgets/admob_banner_widget.dart';
 import '../reader/book_reader_screen.dart';
 
 class HomeScreenV2 extends StatefulWidget {
@@ -120,8 +119,8 @@ class _HomeScreenV2State extends State<HomeScreenV2> {
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // StartApp Banner Ad
-          const StartAppBannerWidget(),
+          // AdMob Banner Ad
+          const AdMobBannerWidget(),
           BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
             currentIndex: _selectedIndex,
@@ -329,9 +328,12 @@ class _LibraryTabState extends State<LibraryTab> {
         padding: const EdgeInsets.all(16),
         itemCount: _getListItemCount(books.length),
         itemBuilder: (context, index) {
-          // Show native ad every 5 books
-          if (_shouldShowNativeAd(index)) {
-            return StartAppNativeWidget(index: index);
+          // Show banner ad after every 5 books
+          if (_shouldShowBannerAd(index)) {
+            return const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: AdMobBannerWidget(),
+            );
           }
 
           // Calculate actual book index (accounting for ads)
@@ -353,8 +355,8 @@ class _LibraryTabState extends State<LibraryTab> {
     return bookCount + adCount;
   }
 
-  // Check if this position should show a native ad
-  bool _shouldShowNativeAd(int index) {
+  // Check if this position should show a banner ad
+  bool _shouldShowBannerAd(int index) {
     // Show ad at positions 5, 11, 17, 23, etc. (after every 5 books)
     return (index + 1) % 6 == 0;
   }
@@ -560,9 +562,12 @@ class _RecentTabState extends State<RecentTab> {
         padding: const EdgeInsets.all(16),
         itemCount: _getListItemCount(books.length),
         itemBuilder: (context, index) {
-          // Show native ad every 5 books
-          if (_shouldShowNativeAd(index)) {
-            return StartAppNativeWidget(index: index);
+          // Show banner ad after every 5 books
+          if (_shouldShowBannerAd(index)) {
+            return const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: AdMobBannerWidget(),
+            );
           }
 
           // Calculate actual book index (accounting for ads)
@@ -583,8 +588,8 @@ class _RecentTabState extends State<RecentTab> {
     return bookCount + adCount;
   }
 
-  // Check if this position should show a native ad
-  bool _shouldShowNativeAd(int index) {
+  // Check if this position should show a banner ad
+  bool _shouldShowBannerAd(int index) {
     return (index + 1) % 6 == 0;
   }
 
@@ -807,9 +812,23 @@ class _BookmarksTabState extends State<BookmarksTab> {
             )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: _filteredBookmarks.length,
+              itemCount: _getBookmarkListItemCount(_filteredBookmarks.length),
               itemBuilder: (context, index) {
-                final bookmark = _filteredBookmarks[index];
+                // Show banner ad after every 5 bookmarks
+                if (_shouldShowBookmarkBannerAd(index)) {
+                  return const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: AdMobBannerWidget(),
+                  );
+                }
+
+                // Calculate actual bookmark index (accounting for ads)
+                final bookmarkIndex = _getBookmarkIndex(index);
+                if (bookmarkIndex >= _filteredBookmarks.length) {
+                  return const SizedBox.shrink();
+                }
+
+                final bookmark = _filteredBookmarks[bookmarkIndex];
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
@@ -861,6 +880,22 @@ class _BookmarksTabState extends State<BookmarksTab> {
       return '${date.day}/${date.month}';
     }
   }
+
+  // Helper methods for bookmark list with ads
+  int _getBookmarkListItemCount(int bookmarkCount) {
+    if (bookmarkCount == 0) return 0;
+    final adCount = (bookmarkCount / 5).floor();
+    return bookmarkCount + adCount;
+  }
+
+  bool _shouldShowBookmarkBannerAd(int index) {
+    return (index + 1) % 6 == 0;
+  }
+
+  int _getBookmarkIndex(int listIndex) {
+    final adsBeforeThis = (listIndex / 6).floor();
+    return listIndex - adsBeforeThis;
+  }
 }
 
 class BookSearchDelegate extends SearchDelegate<BookFileV2?> {
@@ -909,10 +944,26 @@ class BookSearchDelegate extends SearchDelegate<BookFileV2?> {
       return const Center(child: Text('No books found'));
     }
 
+    final totalItems = _getSearchListItemCount(filteredBooks.length);
+
     return ListView.builder(
-      itemCount: filteredBooks.length,
+      itemCount: totalItems,
       itemBuilder: (context, index) {
-        final book = filteredBooks[index];
+        // Show banner ad after every 5 books
+        if (_shouldShowSearchBannerAd(index)) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: AdMobBannerWidget(),
+          );
+        }
+
+        // Calculate actual book index
+        final bookIndex = _getSearchBookIndex(index);
+        if (bookIndex >= filteredBooks.length) {
+          return const SizedBox.shrink();
+        }
+
+        final book = filteredBooks[bookIndex];
         return ListTile(
           leading: Icon(
             book.type == 'pdf' ? Icons.picture_as_pdf : Icons.menu_book,
@@ -926,6 +977,21 @@ class BookSearchDelegate extends SearchDelegate<BookFileV2?> {
         );
       },
     );
+  }
+
+  int _getSearchListItemCount(int bookCount) {
+    if (bookCount == 0) return 0;
+    final adCount = (bookCount / 5).floor();
+    return bookCount + adCount;
+  }
+
+  bool _shouldShowSearchBannerAd(int index) {
+    return (index + 1) % 6 == 0;
+  }
+
+  int _getSearchBookIndex(int listIndex) {
+    final adsBeforeThis = (listIndex / 6).floor();
+    return listIndex - adsBeforeThis;
   }
 }
 
@@ -976,10 +1042,28 @@ class BookmarkSearchDelegate extends SearchDelegate<Bookmark?> {
       return const Center(child: Text('No bookmarks found'));
     }
 
+    final totalItems = _getBookmarkSearchListItemCount(
+      filteredBookmarks.length,
+    );
+
     return ListView.builder(
-      itemCount: filteredBookmarks.length,
+      itemCount: totalItems,
       itemBuilder: (context, index) {
-        final bookmark = filteredBookmarks[index];
+        // Show banner ad after every 5 bookmarks
+        if (_shouldShowBookmarkSearchBannerAd(index)) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: AdMobBannerWidget(),
+          );
+        }
+
+        // Calculate actual bookmark index
+        final bookmarkIndex = _getBookmarkSearchIndex(index);
+        if (bookmarkIndex >= filteredBookmarks.length) {
+          return const SizedBox.shrink();
+        }
+
+        final bookmark = filteredBookmarks[bookmarkIndex];
         return ListTile(
           leading: const CircleAvatar(
             backgroundColor: AppColors.primary,
@@ -993,5 +1077,20 @@ class BookmarkSearchDelegate extends SearchDelegate<Bookmark?> {
         );
       },
     );
+  }
+
+  int _getBookmarkSearchListItemCount(int bookmarkCount) {
+    if (bookmarkCount == 0) return 0;
+    final adCount = (bookmarkCount / 5).floor();
+    return bookmarkCount + adCount;
+  }
+
+  bool _shouldShowBookmarkSearchBannerAd(int index) {
+    return (index + 1) % 6 == 0;
+  }
+
+  int _getBookmarkSearchIndex(int listIndex) {
+    final adsBeforeThis = (listIndex / 6).floor();
+    return listIndex - adsBeforeThis;
   }
 }

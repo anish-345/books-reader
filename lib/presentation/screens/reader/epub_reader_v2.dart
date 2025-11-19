@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_html/flutter_html.dart';
@@ -8,8 +7,8 @@ import '../../../data/models/book_file_v2.dart';
 import '../../../data/models/reading_progress.dart';
 import '../../../services/reading_history_service.dart';
 import '../../../services/epub_parser_service.dart';
-import '../../../services/startapp_ad_service.dart';
-import '../../../widgets/startapp_banner_widget.dart';
+import '../../../services/ad_frequency_service.dart';
+import '../../../widgets/admob_banner_widget.dart';
 
 class EpubReaderV2 extends StatefulWidget {
   final BookFileV2 book;
@@ -39,11 +38,6 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
     super.initState();
     _loadEpubFile();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-
-    // Preload interstitial ad for when user exits (Android only)
-    if (Platform.isAndroid) {
-      StartAppAdService().loadInterstitialAd();
-    }
   }
 
   @override
@@ -52,10 +46,8 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
     _saveProgress();
     _pageController.dispose();
 
-    // Show interstitial ad when exiting reader (Android only)
-    if (Platform.isAndroid) {
-      StartAppAdService().showInterstitialAd();
-    }
+    // Show interstitial ad when exiting reader (time-based, non-intrusive)
+    AdFrequencyService().onReaderExit();
 
     super.dispose();
   }
@@ -290,7 +282,7 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
         ],
       ),
       // Banner ad at bottom (only shows when controls are hidden for clean reading)
-      bottomNavigationBar: !_showControls ? const StartAppBannerWidget() : null,
+      bottomNavigationBar: !_showControls ? const AdMobBannerWidget() : null,
     );
   }
 
