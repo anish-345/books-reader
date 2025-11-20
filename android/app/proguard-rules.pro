@@ -1,4 +1,7 @@
-# Flutter specific rules - Keep all Flutter classes
+# Add project specific ProGuard rules here.
+# Optimized for size reduction while maintaining functionality
+
+## Flutter wrapper - Essential classes only
 -keep class io.flutter.app.** { *; }
 -keep class io.flutter.plugin.**  { *; }
 -keep class io.flutter.util.**  { *; }
@@ -6,51 +9,55 @@
 -keep class io.flutter.**  { *; }
 -keep class io.flutter.plugins.**  { *; }
 -keep class io.flutter.embedding.** { *; }
--keep class io.flutter.embedding.engine.** { *; }
 
-# Keep main application components
--keep public class * extends android.app.Application
--keep public class * extends android.app.Activity
--keep public class * extends android.app.Service
--keep public class * extends android.content.BroadcastReceiver
--keep public class * extends android.content.ContentProvider
+## Google Mobile Ads - Keep only necessary classes
+-keep class com.google.android.gms.ads.** { *; }
+-keep class com.google.ads.** { *; }
+-keep class com.google.android.gms.common.** { *; }
+-dontwarn com.google.android.gms.**
 
-# PDF and EPUB specific
+## PDF View
 -keep class com.github.barteksc.pdfviewer.** { *; }
--keep class nl.siegmann.epublib.** { *; }
+-dontwarn com.github.barteksc.pdfviewer.**
 
-# Permission handler
+## Permission Handler
 -keep class com.baseflow.permissionhandler.** { *; }
+-dontwarn com.baseflow.permissionhandler.**
 
-# Shared preferences
+## Shared Preferences
 -keep class io.flutter.plugins.sharedpreferences.** { *; }
 
-# Path provider
+## Path Provider
 -keep class io.flutter.plugins.pathprovider.** { *; }
 
-
-
-# Keep native methods
--keepclasseswithmembernames class * {
-    native <methods>;
-}
-
-# Keep essential annotations for Flutter
--keepattributes RuntimeVisibleAnnotations
--keepattributes RuntimeInvisibleAnnotations
--keepattributes Signature
--keepattributes InnerClasses
--keepattributes EnclosingMethod
--keepattributes *Annotation*
-
-# Keep Kotlin metadata
+## Kotlin - Minimal required
 -keep class kotlin.** { *; }
 -keep class kotlin.Metadata { *; }
 -dontwarn kotlin.**
--dontwarn kotlin.Unit
--dontwarn kotlin.jvm.internal.**
+-keepclassmembers class **$WhenMappings {
+    <fields>;
+}
+-keepclassmembers class kotlin.Metadata {
+    public <methods>;
+}
+-assumenosideeffects class kotlin.jvm.internal.Intrinsics {
+    static void checkParameterIsNotNull(java.lang.Object, java.lang.String);
+}
 
-# Remove debug logging (safe optimization)
+## General - Keep essential attributes
+-keepattributes *Annotation*
+-keepattributes Signature
+-keepattributes Exceptions
+-keepattributes InnerClasses
+-keepattributes EnclosingMethod
+-keepattributes SourceFile
+-keepattributes LineNumberTable
+
+## Play Core (for Flutter split APKs)
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }
+
+## Remove all logging for production
 -assumenosideeffects class android.util.Log {
     public static boolean isLoggable(java.lang.String, int);
     public static int v(...);
@@ -60,14 +67,45 @@
     public static int e(...);
 }
 
-# Remove unused code warnings
--dontwarn javax.annotation.**
--dontwarn org.codehaus.mojo.animal_sniffer.*
--dontwarn android.support.**
--dontwarn androidx.**
--dontwarn java.lang.invoke.**
+## Optimization flags
+-optimizationpasses 5
+-dontusemixedcaseclassnames
+-dontskipnonpubliclibraryclasses
+-verbose
+-optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*
 
-# Keep serialization
+## Remove unused resources
+-dontwarn org.xmlpull.v1.**
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-dontwarn javax.annotation.**
+-dontwarn org.conscrypt.**
+
+## Keep native methods
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+## Keep custom views
+-keepclasseswithmembers class * {
+    public <init>(android.content.Context, android.util.AttributeSet);
+}
+-keepclasseswithmembers class * {
+    public <init>(android.content.Context, android.util.AttributeSet, int);
+}
+
+## Keep enums
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+## Keep Parcelable
+-keepclassmembers class * implements android.os.Parcelable {
+    public static final android.os.Parcelable$Creator CREATOR;
+}
+
+## Keep Serializable
 -keepclassmembers class * implements java.io.Serializable {
     static final long serialVersionUID;
     private static final java.io.ObjectStreamField[] serialPersistentFields;
@@ -76,6 +114,3 @@
     java.lang.Object writeReplace();
     java.lang.Object readResolve();
 }
-
-# Don't warn about missing classes
--dontwarn **
