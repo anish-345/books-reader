@@ -58,20 +58,9 @@ android {
         release {
             signingConfig = signingConfigs.getByName("release")
             
-            // Enable code shrinking and resource shrinking
-            isMinifyEnabled = true
-            isShrinkResources = true
-            
-            // ProGuard rules for optimization
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            
-            // Additional optimizations
-            ndk {
-                debugSymbolLevel = "NONE"
-            }
+            // Disable minification to avoid build issues
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
         
         debug {

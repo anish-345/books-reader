@@ -7,10 +7,10 @@ class AdMobService {
   factory AdMobService() => _instance;
   AdMobService._internal();
 
-  // Ad Unit IDs (Real AdMob IDs - Production)
+  // Test Ad Unit IDs
   static String get bannerAdUnitId => Platform.isAndroid
-      ? 'ca-app-pub-2743584570741087/9777420305' // Real Banner Android
-      : 'ca-app-pub-3940256099942544/2934735716'; // Test Banner iOS (update when you have iOS ID)
+      ? 'ca-app-pub-3940256099942544/6300978111' // Test Banner
+      : 'ca-app-pub-3940256099942544/2934735716'; // Test Banner iOS
 
   static String get interstitialAdUnitId => Platform.isAndroid
       ? 'ca-app-pub-3940256099942544/1033173712' // Test Interstitial
@@ -42,7 +42,6 @@ class AdMobService {
       debugPrint('✅ AdMob: Initialization COMPLETE');
       debugPrint('   SDK is ready to show ads');
 
-      // Preload first interstitial ad
       loadInterstitialAd();
     } catch (e, stackTrace) {
       debugPrint('❌ AdMob: Exception during initialization');
@@ -69,7 +68,6 @@ class AdMobService {
                     debugPrint('AdMob: Interstitial ad dismissed');
                     ad.dispose();
                     _interstitialAd = null;
-                    // Preload next ad
                     loadInterstitialAd();
                   },
                   onAdFailedToShowFullScreenContent: (ad, error) {
@@ -95,7 +93,7 @@ class AdMobService {
 
     if (_interstitialAd == null) {
       debugPrint('⚠️ AdMob: Interstitial ad not ready yet');
-      loadInterstitialAd(); // Try to load for next time
+      loadInterstitialAd();
       return;
     }
 
@@ -132,7 +130,6 @@ class AdMobService {
               },
             );
 
-            // Show the ad
             _rewardedAd!.show(
               onUserEarnedReward: (ad, reward) {
                 debugPrint(

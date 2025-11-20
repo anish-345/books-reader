@@ -426,8 +426,8 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
             ),
         ],
       ),
-      // Banner ad at bottom (only shows when controls are hidden for clean reading)
-      bottomNavigationBar: !_showControls ? const AdMobBannerWidget() : null,
+      // Banner ad at bottom (always visible)
+      bottomNavigationBar: const AdMobBannerWidget(),
     );
   }
 

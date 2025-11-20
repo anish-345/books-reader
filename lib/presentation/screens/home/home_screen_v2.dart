@@ -119,7 +119,7 @@ class _HomeScreenV2State extends State<HomeScreenV2> {
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // AdMob Banner Ad
+          // Unity Banner Ad
           const AdMobBannerWidget(),
           BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
@@ -1094,3 +1094,4 @@ class BookmarkSearchDelegate extends SearchDelegate<Bookmark?> {
     return listIndex - adsBeforeThis;
   }
 }
+

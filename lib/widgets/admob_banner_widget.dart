@@ -21,13 +21,16 @@ class _AdMobBannerWidgetState extends State<AdMobBannerWidget> {
   }
 
   void _loadBannerAd() {
-    // Only show on Android and iOS
     if (!Platform.isAndroid && !Platform.isIOS) {
       return;
     }
 
-    // Check if SDK is initialized
     if (!AdMobService().isInitialized) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _loadBannerAd();
+        }
+      });
       return;
     }
 
@@ -66,17 +69,14 @@ class _AdMobBannerWidgetState extends State<AdMobBannerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    // Only show on Android and iOS
     if (!Platform.isAndroid && !Platform.isIOS) {
       return const SizedBox.shrink();
     }
 
-    // Check if SDK is initialized
     if (!AdMobService().isInitialized) {
       return const SizedBox.shrink();
     }
 
-    // Show banner when loaded
     if (!_isAdLoaded || _bannerAd == null) {
       return const SizedBox.shrink();
     }

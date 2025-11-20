@@ -69,7 +69,7 @@ class AdFrequencyService {
 
   Future<void> _showInterstitialAd() async {
     try {
-      // Show interstitial ad (AdMob handles loading automatically)
+      // Show interstitial ad
       await AdMobService().showInterstitialAd();
 
       // Update last shown time
