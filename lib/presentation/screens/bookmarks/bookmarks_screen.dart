@@ -1,10 +1,10 @@
+import 'package:book_reader/services/file_scanner_service.dart';
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
 import '../../../data/models/bookmark.dart';
 import '../../../data/models/book_file_v2.dart';
 import '../../../services/bookmark_service.dart';
-import '../../../services/file_scanner_service.dart';
 import '../reader/book_reader_screen.dart';
 
 class BookmarksScreen extends StatefulWidget {

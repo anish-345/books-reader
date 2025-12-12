@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,25 +14,22 @@ import 'services/intent_handler_service.dart';
 import 'services/admob_service.dart';
 import 'services/ad_frequency_service.dart';
 
-// Global navigator key for intent handling
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
 
-    // Initialize AdMob and wait for it to complete
-    await AdMobService().initialize().catchError((e) {
-      debugPrint('AdMob initialization error: $e');
-    });
+    if (Platform.isAndroid || Platform.isIOS) {
+      await AdMobService().initialize().catchError((e) {
+        debugPrint('AdMob initialization error: $e');
+      });
+    }
 
-    // Initialize ad frequency service
     await AdFrequencyService().initialize();
 
-    // Initialize intent handler with navigator key
     IntentHandlerService.initialize(navigatorKey: navigatorKey);
 
-    // Allow all orientations (portrait and landscape)
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -38,7 +37,6 @@ void main() async {
       DeviceOrientation.landscapeRight,
     ]);
 
-    // Set system UI overlay style
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -92,26 +90,23 @@ class _AppInitializerState extends State<AppInitializer> {
 
   Future<void> _initializeApp() async {
     try {
-      // Request storage permissions early
-      await _requestPermissions();
+      if (Platform.isAndroid || Platform.isIOS) {
+        await _requestPermissions();
+      }
 
-      // Mark app as initialized (skip onboarding completely)
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(AppConstants.firstLaunchKey, false);
       await prefs.setBool(AppConstants.onboardingCompletedKey, true);
 
-      // Set navigator key for intent handling
       IntentHandlerService.setNavigatorKey(navigatorKey);
 
       setState(() {
         _isInitializing = false;
       });
 
-      // Check for pending file intents after navigator is ready
       await Future.delayed(const Duration(milliseconds: 500));
       await IntentHandlerService.checkPendingIntents();
     } catch (e) {
-      // If there's an error, still go to home
       setState(() {
         _isInitializing = false;
       });
@@ -132,19 +127,16 @@ class _AppInitializerState extends State<AppInitializer> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // Always go directly to home screen (no onboarding)
     return const HomeScreenV2();
   }
 }
 
-// Global error handler
 class AppErrorHandler {
   static void handleError(Object error, StackTrace stackTrace) {
     // Silent error handling for production
   }
 }
 
-// Global app state (if needed for simple state management)
 class AppState extends ChangeNotifier {
   static final AppState _instance = AppState._internal();
   factory AppState() => _instance;

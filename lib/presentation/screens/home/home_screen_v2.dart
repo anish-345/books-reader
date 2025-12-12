@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
@@ -42,12 +44,18 @@ class _HomeScreenV2State extends State<HomeScreenV2> {
   }
 
   Future<void> _checkPermissions() async {
-    final hasPermission = await PermissionService.hasStoragePermission();
-    if (!hasPermission) {
-      final granted = await PermissionService.requestStoragePermission();
-      setState(() {
-        _hasPermission = granted;
-      });
+    if (Platform.isAndroid) {
+      final hasPermission = await PermissionService.hasStoragePermission();
+      if (!hasPermission) {
+        final granted = await PermissionService.requestStoragePermission();
+        setState(() {
+          _hasPermission = granted;
+        });
+      } else {
+        setState(() {
+          _hasPermission = true;
+        });
+      }
     } else {
       setState(() {
         _hasPermission = true;
@@ -60,7 +68,6 @@ class _HomeScreenV2State extends State<HomeScreenV2> {
       final books = await FileScannerService.scanForBooks();
       final recentBooks = await ReadingHistoryService.getRecentlyRead();
 
-      // Add sample books if no real books found
       List<BookFileV2> allBooks = books;
       if (SampleBooksService.shouldShowSampleBooks(books)) {
         final sampleBooks = await SampleBooksService.getSampleBooks();
@@ -87,30 +94,29 @@ class _HomeScreenV2State extends State<HomeScreenV2> {
   }
 
   Future<void> _refreshRecentBooks() async {
-    // Refresh only recent books without showing loading indicator
     final recentBooks = await ReadingHistoryService.getRecentlyRead();
     if (mounted) {
       setState(() {
-        _recentBooks = recentBooks.take(20).toList(); // Limit to 20 items
+        _recentBooks = recentBooks.take(20).toList();
       });
     }
   }
 
   List<Widget> get _screens => [
-    LibraryTab(
-      books: _allBooks,
-      isLoading: _isLoading,
-      hasPermission: _hasPermission,
-      onRefresh: _refreshBooks,
-      onRequestPermission: _checkPermissions,
-    ),
-    RecentTab(
-      books: _recentBooks,
-      isLoading: _isLoading,
-      onRefresh: _refreshBooks,
-    ),
-    const BookmarksTab(),
-  ];
+        LibraryTab(
+          books: _allBooks,
+          isLoading: _isLoading,
+          hasPermission: _hasPermission,
+          onRefresh: _refreshBooks,
+          onRequestPermission: _checkPermissions,
+        ),
+        RecentTab(
+          books: _recentBooks,
+          isLoading: _isLoading,
+          onRefresh: _refreshBooks,
+        ),
+        const BookmarksTab(),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -119,8 +125,8 @@ class _HomeScreenV2State extends State<HomeScreenV2> {
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // AdMob Banner Ad
-          const AdMobBannerWidget(),
+          if (Platform.isAndroid || Platform.isIOS)
+            const AdMobBannerWidget(),
           BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
             currentIndex: _selectedIndex,
@@ -128,7 +134,6 @@ class _HomeScreenV2State extends State<HomeScreenV2> {
               setState(() {
                 _selectedIndex = index;
               });
-              // Auto-refresh recent books when Recent tab is selected
               if (index == 1) {
                 _refreshRecentBooks();
               }
@@ -194,7 +199,6 @@ class _LibraryTabState extends State<LibraryTab> {
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () async {
-              // Open search directly without ad (for better UX)
               final navigator = Navigator.of(context);
               final selectedBook = await showSearch(
                 context: context,
@@ -213,11 +217,11 @@ class _LibraryTabState extends State<LibraryTab> {
       ),
       body: widget.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : !widget.hasPermission
-          ? _buildPermissionRequest()
-          : widget.books.isEmpty
-          ? _buildEmptyState()
-          : _buildBooksList(),
+          : !widget.hasPermission && (Platform.isAndroid)
+              ? _buildPermissionRequest()
+              : widget.books.isEmpty
+                  ? _buildEmptyState()
+                  : _buildBooksList(),
     );
   }
 
@@ -249,7 +253,7 @@ class _LibraryTabState extends State<LibraryTab> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
+                color: Colors.blue.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Column(
@@ -328,7 +332,6 @@ class _LibraryTabState extends State<LibraryTab> {
         padding: const EdgeInsets.all(16),
         itemCount: _getListItemCount(books.length),
         itemBuilder: (context, index) {
-          // Show banner ad after every 5 books
           if (_shouldShowBannerAd(index)) {
             return const Padding(
               padding: EdgeInsets.only(bottom: 12),
@@ -336,7 +339,6 @@ class _LibraryTabState extends State<LibraryTab> {
             );
           }
 
-          // Calculate actual book index (accounting for ads)
           final bookIndex = _getBookIndex(index);
           if (bookIndex >= books.length) return const SizedBox.shrink();
 
@@ -347,23 +349,20 @@ class _LibraryTabState extends State<LibraryTab> {
     );
   }
 
-  // Calculate total items including ads
   int _getListItemCount(int bookCount) {
     if (bookCount == 0) return 0;
-    // Add one ad for every 5 books
+    if (!Platform.isAndroid && !Platform.isIOS) return bookCount;
     final adCount = (bookCount / 5).floor();
     return bookCount + adCount;
   }
 
-  // Check if this position should show a banner ad
   bool _shouldShowBannerAd(int index) {
-    // Show ad at positions 5, 11, 17, 23, etc. (after every 5 books)
+    if (!Platform.isAndroid && !Platform.isIOS) return false;
     return (index + 1) % 6 == 0;
   }
 
-  // Get the actual book index from list index
   int _getBookIndex(int listIndex) {
-    // Calculate how many ads appear before this position
+    if (!Platform.isAndroid && !Platform.isIOS) return listIndex;
     final adsBeforeThis = (listIndex / 6).floor();
     return listIndex - adsBeforeThis;
   }
@@ -377,8 +376,8 @@ class _LibraryTabState extends State<LibraryTab> {
           height: 64,
           decoration: BoxDecoration(
             color: book.type == 'pdf'
-                ? Colors.red.withValues(alpha: 0.1)
-                : Colors.blue.withValues(alpha: 0.1),
+                ? Colors.red.withOpacity(0.1)
+                : Colors.blue.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
@@ -439,10 +438,7 @@ class _LibraryTabState extends State<LibraryTab> {
   }
 
   void _openBook(BookFileV2 book) {
-    // Add to reading history
     ReadingHistoryService.addToHistory(book);
-
-    // Navigate to book reader
     Navigator.of(context).push(
       MaterialPageRoute(builder: (context) => BookReaderScreen(book: book)),
     );
@@ -528,8 +524,8 @@ class _RecentTabState extends State<RecentTab> {
       body: widget.isLoading
           ? const Center(child: CircularProgressIndicator())
           : widget.books.isEmpty
-          ? _buildEmptyState()
-          : _buildRecentBooksList(),
+              ? _buildEmptyState()
+              : _buildRecentBooksList(),
     );
   }
 
@@ -562,7 +558,6 @@ class _RecentTabState extends State<RecentTab> {
         padding: const EdgeInsets.all(16),
         itemCount: _getListItemCount(books.length),
         itemBuilder: (context, index) {
-          // Show banner ad after every 5 books
           if (_shouldShowBannerAd(index)) {
             return const Padding(
               padding: EdgeInsets.only(bottom: 12),
@@ -570,7 +565,6 @@ class _RecentTabState extends State<RecentTab> {
             );
           }
 
-          // Calculate actual book index (accounting for ads)
           final bookIndex = _getBookIndex(index);
           if (bookIndex >= books.length) return const SizedBox.shrink();
 
@@ -581,20 +575,20 @@ class _RecentTabState extends State<RecentTab> {
     );
   }
 
-  // Calculate total items including ads
   int _getListItemCount(int bookCount) {
     if (bookCount == 0) return 0;
+    if (!Platform.isAndroid && !Platform.isIOS) return bookCount;
     final adCount = (bookCount / 5).floor();
     return bookCount + adCount;
   }
 
-  // Check if this position should show a banner ad
   bool _shouldShowBannerAd(int index) {
+    if (!Platform.isAndroid && !Platform.isIOS) return false;
     return (index + 1) % 6 == 0;
   }
 
-  // Get the actual book index from list index
   int _getBookIndex(int listIndex) {
+    if (!Platform.isAndroid && !Platform.isIOS) return listIndex;
     final adsBeforeThis = (listIndex / 6).floor();
     return listIndex - adsBeforeThis;
   }
@@ -608,8 +602,8 @@ class _RecentTabState extends State<RecentTab> {
           height: 64,
           decoration: BoxDecoration(
             color: book.type == 'pdf'
-                ? Colors.red.withValues(alpha: 0.1)
-                : Colors.blue.withValues(alpha: 0.1),
+                ? Colors.red.withOpacity(0.1)
+                : Colors.blue.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
@@ -669,10 +663,7 @@ class _RecentTabState extends State<RecentTab> {
   }
 
   void _openBook(BookFileV2 book) {
-    // Add to reading history
     ReadingHistoryService.addToHistory(book);
-
-    // Navigate to book reader
     Navigator.of(context).push(
       MaterialPageRoute(builder: (context) => BookReaderScreen(book: book)),
     );
@@ -716,36 +707,33 @@ class _BookmarksTabState extends State<BookmarksTab> {
 
   Future<void> _navigateToBookmark(Bookmark bookmark) async {
     try {
-      // Find the book file by ID
       final bookFile = await _findBookById(bookmark.bookId);
       if (bookFile != null && mounted) {
-        // Navigate to the book reader with the specific page
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) =>
                 BookReaderScreen(book: bookFile, initialPage: bookmark.page),
           ),
-        ).then((_) => _loadBookmarks()); // Refresh bookmarks when returning
+        ).then((_) => _loadBookmarks());
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Book file not found')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Book file not found')),
+          );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error opening book: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening book: $e')),
+        );
       }
     }
   }
 
   Future<BookFileV2?> _findBookById(String bookId) async {
     try {
-      // Get all books from the file scanner
       final allBooks = await FileScannerService.scanForBooks();
       return allBooks.firstWhere(
         (book) => book.id == bookId,
@@ -764,9 +752,7 @@ class _BookmarksTabState extends State<BookmarksTab> {
       return bookmark.bookTitle.toLowerCase().contains(
             _searchQuery.toLowerCase(),
           ) ||
-          bookmark.displayTitle.toLowerCase().contains(
-            _searchQuery.toLowerCase(),
-          );
+          (bookmark.displayTitle != null && bookmark.displayTitle!.toLowerCase().contains(_searchQuery.toLowerCase()));
     }).toList();
   }
 
@@ -780,7 +766,6 @@ class _BookmarksTabState extends State<BookmarksTab> {
             IconButton(
               icon: const Icon(Icons.search),
               onPressed: () async {
-                // Open bookmark search directly without ad (for better UX)
                 final selectedBookmark = await showSearch(
                   context: context,
                   delegate: BookmarkSearchDelegate(_bookmarks),
@@ -795,74 +780,72 @@ class _BookmarksTabState extends State<BookmarksTab> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _filteredBookmarks.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.bookmark, size: 64, color: AppColors.textTertiary),
-                  SizedBox(height: 16),
-                  Text('No bookmarks', style: AppTextStyles.h4),
-                  SizedBox(height: 8),
-                  Text(
-                    'Bookmark pages to find them easily',
-                    style: AppTextStyles.bodyMedium,
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.bookmark, size: 64, color: AppColors.textTertiary),
+                      SizedBox(height: 16),
+                      Text('No bookmarks', style: AppTextStyles.h4),
+                      SizedBox(height: 8),
+                      Text(
+                        'Bookmark pages to find them easily',
+                        style: AppTextStyles.bodyMedium,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _getBookmarkListItemCount(_filteredBookmarks.length),
-              itemBuilder: (context, index) {
-                // Show banner ad after every 5 bookmarks
-                if (_shouldShowBookmarkBannerAd(index)) {
-                  return const Padding(
-                    padding: EdgeInsets.only(bottom: 8),
-                    child: AdMobBannerWidget(),
-                  );
-                }
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _getBookmarkListItemCount(_filteredBookmarks.length),
+                  itemBuilder: (context, index) {
+                    if (_shouldShowBookmarkBannerAd(index)) {
+                      return const Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: AdMobBannerWidget(),
+                      );
+                    }
 
-                // Calculate actual bookmark index (accounting for ads)
-                final bookmarkIndex = _getBookmarkIndex(index);
-                if (bookmarkIndex >= _filteredBookmarks.length) {
-                  return const SizedBox.shrink();
-                }
+                    final bookmarkIndex = _getBookmarkIndex(index);
+                    if (bookmarkIndex >= _filteredBookmarks.length) {
+                      return const SizedBox.shrink();
+                    }
 
-                final bookmark = _filteredBookmarks[bookmarkIndex];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: AppColors.primary,
-                      child: const Icon(
-                        Icons.bookmark,
-                        color: Colors.white,
-                        size: 20,
+                    final bookmark = _filteredBookmarks[bookmarkIndex];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.primary,
+                          child: const Icon(
+                            Icons.bookmark,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        title: Text(
+                          bookmark.bookTitle,
+                          style: AppTextStyles.labelLarge,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          'Page ${bookmark.page}',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        trailing: Text(
+                          _formatDate(bookmark.createdAt),
+                          style: AppTextStyles.labelSmall.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
+                        ),
+                        onTap: () => _navigateToBookmark(bookmark),
                       ),
-                    ),
-                    title: Text(
-                      bookmark.bookTitle,
-                      style: AppTextStyles.labelLarge,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      'Page ${bookmark.page}',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    trailing: Text(
-                      _formatDate(bookmark.createdAt),
-                      style: AppTextStyles.labelSmall.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                    onTap: () => _navigateToBookmark(bookmark),
-                  ),
-                );
-              },
-            ),
+                    );
+                  },
+                ),
     );
   }
 
@@ -881,18 +864,20 @@ class _BookmarksTabState extends State<BookmarksTab> {
     }
   }
 
-  // Helper methods for bookmark list with ads
   int _getBookmarkListItemCount(int bookmarkCount) {
     if (bookmarkCount == 0) return 0;
+    if (!Platform.isAndroid && !Platform.isIOS) return bookmarkCount;
     final adCount = (bookmarkCount / 5).floor();
     return bookmarkCount + adCount;
   }
 
   bool _shouldShowBookmarkBannerAd(int index) {
+    if (!Platform.isAndroid && !Platform.isIOS) return false;
     return (index + 1) % 6 == 0;
   }
 
   int _getBookmarkIndex(int listIndex) {
+    if (!Platform.isAndroid && !Platform.isIOS) return listIndex;
     final adsBeforeThis = (listIndex / 6).floor();
     return listIndex - adsBeforeThis;
   }
@@ -949,7 +934,6 @@ class BookSearchDelegate extends SearchDelegate<BookFileV2?> {
     return ListView.builder(
       itemCount: totalItems,
       itemBuilder: (context, index) {
-        // Show banner ad after every 5 books
         if (_shouldShowSearchBannerAd(index)) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
@@ -957,7 +941,6 @@ class BookSearchDelegate extends SearchDelegate<BookFileV2?> {
           );
         }
 
-        // Calculate actual book index
         final bookIndex = _getSearchBookIndex(index);
         if (bookIndex >= filteredBooks.length) {
           return const SizedBox.shrink();
@@ -981,15 +964,18 @@ class BookSearchDelegate extends SearchDelegate<BookFileV2?> {
 
   int _getSearchListItemCount(int bookCount) {
     if (bookCount == 0) return 0;
+    if (!Platform.isAndroid && !Platform.isIOS) return bookCount;
     final adCount = (bookCount / 5).floor();
     return bookCount + adCount;
   }
 
   bool _shouldShowSearchBannerAd(int index) {
+    if (!Platform.isAndroid && !Platform.isIOS) return false;
     return (index + 1) % 6 == 0;
   }
 
   int _getSearchBookIndex(int listIndex) {
+    if (!Platform.isAndroid && !Platform.isIOS) return listIndex;
     final adsBeforeThis = (listIndex / 6).floor();
     return listIndex - adsBeforeThis;
   }
@@ -1035,7 +1021,7 @@ class BookmarkSearchDelegate extends SearchDelegate<Bookmark?> {
   Widget _buildSearchResults() {
     final filteredBookmarks = bookmarks.where((bookmark) {
       return bookmark.bookTitle.toLowerCase().contains(query.toLowerCase()) ||
-          bookmark.displayTitle.toLowerCase().contains(query.toLowerCase());
+          (bookmark.displayTitle != null && bookmark.displayTitle!.toLowerCase().contains(query.toLowerCase()));
     }).toList();
 
     if (filteredBookmarks.isEmpty) {
@@ -1049,7 +1035,6 @@ class BookmarkSearchDelegate extends SearchDelegate<Bookmark?> {
     return ListView.builder(
       itemCount: totalItems,
       itemBuilder: (context, index) {
-        // Show banner ad after every 5 bookmarks
         if (_shouldShowBookmarkSearchBannerAd(index)) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
@@ -1057,7 +1042,6 @@ class BookmarkSearchDelegate extends SearchDelegate<Bookmark?> {
           );
         }
 
-        // Calculate actual bookmark index
         final bookmarkIndex = _getBookmarkSearchIndex(index);
         if (bookmarkIndex >= filteredBookmarks.length) {
           return const SizedBox.shrink();
@@ -1081,15 +1065,18 @@ class BookmarkSearchDelegate extends SearchDelegate<Bookmark?> {
 
   int _getBookmarkSearchListItemCount(int bookmarkCount) {
     if (bookmarkCount == 0) return 0;
+    if (!Platform.isAndroid && !Platform.isIOS) return bookmarkCount;
     final adCount = (bookmarkCount / 5).floor();
     return bookmarkCount + adCount;
   }
 
   bool _shouldShowBookmarkSearchBannerAd(int index) {
+    if (!Platform.isAndroid && !Platform.isIOS) return false;
     return (index + 1) % 6 == 0;
   }
 
   int _getBookmarkSearchIndex(int listIndex) {
+    if (!Platform.isAndroid && !Platform.isIOS) return listIndex;
     final adsBeforeThis = (listIndex / 6).floor();
     return listIndex - adsBeforeThis;
   }
