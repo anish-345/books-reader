@@ -47,7 +47,7 @@ class EpubParserService {
       // Extract book metadata
       final title = epubBook.Title ?? 'Unknown Title';
       final author = epubBook.Author ?? 'Unknown Author';
-      final description = '';
+      const description = '';
 
       // Extract chapters
       final chapters = <EpubChapterData>[];

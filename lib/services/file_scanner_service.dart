@@ -55,7 +55,11 @@ class FileScannerService {
         if (externalDir != null) {
           final root = Directory('/storage/emulated/0');
           if (await root.exists()) {
-            directories.add(root);
+            directories.addAll([
+              Directory('${root.path}/Download'),
+              Directory('${root.path}/Documents'),
+              Directory('${root.path}/Books'),
+            ]);
           }
         }
       } catch (e) {
@@ -65,17 +69,18 @@ class FileScannerService {
       try {
         final downloads = await getDownloadsDirectory();
         final documents = await getApplicationDocumentsDirectory();
-        if (documents != null) {
-          directories.add(documents);
-          try {
-            final desktop = Directory(documents.parent.path + Platform.pathSeparator + 'Desktop');
-            if(await desktop.exists()){
-               directories.add(desktop);
-            }
-          } catch(e) {
-            // Ignore if desktop path can't be determined
+
+        directories.addAll([documents, Directory('${documents.path}/Books')]);
+
+        try {
+          final desktop = Directory('${documents.parent.path}${Platform.pathSeparator}Desktop');
+          if(await desktop.exists()){
+              directories.add(desktop);
           }
+        } catch(e) {
+          // Ignore if desktop path can't be determined
         }
+
         if (downloads != null) {
           directories.add(downloads);
         }

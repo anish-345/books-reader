@@ -176,8 +176,8 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _filteredBookmarks.isEmpty
-          ? _buildEmptyState()
-          : _buildBookmarksList(),
+              ? _buildEmptyState()
+              : _buildBookmarksList(),
     );
   }
 
@@ -263,9 +263,9 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
         trailing: PopupMenuButton(
           icon: const Icon(Icons.more_vert),
           itemBuilder: (context) => [
-            PopupMenuItem(
+            const PopupMenuItem(
               value: 'delete',
-              child: const Row(
+              child: Row(
                 children: [
                   Icon(Icons.delete, color: Colors.red),
                   SizedBox(width: 8),
