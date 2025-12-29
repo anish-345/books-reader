@@ -43,3 +43,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Visual Studio
+.vs/
+
+# Inno Setup
+inno_setup.iss
+installers/
+
+# other
+devtools_options.yaml
+new.sh
+new2.sh

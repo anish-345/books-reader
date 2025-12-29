@@ -130,7 +130,7 @@ class AppTheme {
         activeTrackColor: AppColors.primary,
         inactiveTrackColor: AppColors.borderLight,
         thumbColor: AppColors.primary,
-        overlayColor: AppColors.primary.withValues(alpha: 0.2),
+        overlayColor: AppColors.primary.withAlpha(51),
         trackHeight: 4,
       ),
 
@@ -144,7 +144,7 @@ class AppTheme {
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return AppColors.primary.withValues(alpha: 0.5);
+            return AppColors.primary.withAlpha(127);
           }
           return AppColors.borderLight;
         }),
@@ -242,6 +242,63 @@ class AppTheme {
           horizontal: 16,
           vertical: 12,
         ),
+      ),
+
+      // List Tile Theme
+      listTileTheme: const ListTileThemeData(
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        titleTextStyle: AppTextStyles.listTitle, // You may want a different style for dark mode
+        subtitleTextStyle: AppTextStyles.listSubtitle, // You may want a different style for dark mode
+      ),
+
+      // Tab Bar Theme
+      tabBarTheme: const TabBarThemeData(
+        labelColor: AppColors.primary,
+        unselectedLabelColor: AppColors.textLight,
+        labelStyle: AppTextStyles.tabLabel,
+        unselectedLabelStyle: AppTextStyles.tabLabel,
+        indicator: UnderlineTabIndicator(
+          borderSide: BorderSide(color: AppColors.primary, width: 2),
+        ),
+      ),
+
+      // Slider Theme
+      sliderTheme: SliderThemeData(
+        activeTrackColor: AppColors.primary,
+        inactiveTrackColor: AppColors.borderDark,
+        thumbColor: AppColors.primary,
+        overlayColor: AppColors.primary.withAlpha(51),
+        trackHeight: 4,
+      ),
+
+      // Switch Theme
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.primary;
+          }
+          return AppColors.borderMedium;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.primary.withAlpha(127);
+          }
+          return AppColors.borderDark;
+        }),
+      ),
+
+      // Floating Action Button Theme
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 4,
+      ),
+
+      // Divider Theme
+      dividerTheme: const DividerThemeData(
+        color: AppColors.borderDark,
+        thickness: 1,
+        space: 1,
       ),
     );
   }

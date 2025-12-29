@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
-import '../../../widgets/app_logo.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -79,10 +78,10 @@ class _SplashScreenState extends State<SplashScreen>
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
+                        color: AppColors.primary.withAlpha(25),
                         borderRadius: BorderRadius.circular(30),
                       ),
-                      child: const AppLogo(size: 120, color: AppColors.primary),
+                      child: Image.asset('assets/images/logo.png', width: 120, height: 120),
                     ),
 
                     const SizedBox(height: 32),
@@ -115,7 +114,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: CircularProgressIndicator(
                         strokeWidth: 3,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          AppColors.primary.withValues(alpha: 0.7),
+                          AppColors.primary.withAlpha(178),
                         ),
                       ),
                     ),

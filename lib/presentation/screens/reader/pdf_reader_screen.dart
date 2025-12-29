@@ -12,8 +12,6 @@ import '../../../data/models/bookmark.dart';
 import '../../../data/models/reading_progress.dart';
 import '../../../services/bookmark_service.dart';
 import '../../../services/reading_history_service.dart';
-import '../../../services/ad_frequency_service.dart';
-import '../../../widgets/admob_banner_widget.dart';
 
 class PDFReaderScreen extends StatefulWidget {
   final BookFileV2 book;
@@ -66,9 +64,6 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
     _saveProgress();
     _focusNode.dispose();
 
-    if (Platform.isAndroid || Platform.isIOS) {
-      AdFrequencyService().onReaderExit();
-    }
     super.dispose();
   }
 
@@ -198,8 +193,8 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
     }
   }
   
-  void _handleKeyEvent(RawKeyEvent event) {
-    if (event is RawKeyDownEvent) {
+  void _handleKeyEvent(KeyEvent event) {
+    if (event is KeyDownEvent) {
       if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
         final controller = _pdfViewerController;
         if (controller == null) return;
@@ -232,9 +227,9 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: RawKeyboardListener(
+      body: KeyboardListener(
         focusNode: _focusNode,
-        onKey: _handleKeyEvent,
+        onKeyEvent: _handleKeyEvent,
         child: Stack(
           children: [
             GestureDetector(
@@ -260,7 +255,7 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
         ),
       ),
       bottomNavigationBar:
-          (!_showControls && !isDesktop) ? const AdMobBannerWidget() : null,
+          (!_showControls && !isDesktop) ? const SizedBox.shrink() : null,
     );
   }
 
@@ -327,7 +322,7 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+            colors: [Colors.black.withAlpha(178), Colors.transparent],
           ),
         ),
         child: SafeArea(
@@ -375,7 +370,7 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.7),
+            color: Colors.black.withAlpha(178),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -395,7 +390,7 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
       child: Container(
         width: 60,
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.7),
+          color: Colors.black.withAlpha(178),
           borderRadius: BorderRadius.circular(30),
         ),
         child: Column(
@@ -422,7 +417,7 @@ class _PDFReaderScreenState extends State<PDFReaderScreen> {
                     max: _totalPages.toDouble(),
                     divisions: _totalPages > 1 ? _totalPages - 1 : 1,
                     activeColor: AppColors.primary,
-                    inactiveColor: Colors.white.withOpacity(0.3),
+                    inactiveColor: Colors.white.withAlpha(77),
                     thumbColor: Colors.white,
                     onChanged: (value) {
                       _goToPage(value.round());

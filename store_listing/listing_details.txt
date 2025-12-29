@@ -1,0 +1,29 @@
+## App Store Listing Details
+
+**App Name:** EPUB & PDF Reader
+
+**Short Description:** A seamless and feature-rich reader for all your EPUB and PDF files. Effortlessly manage and read your favorite books and documents.
+
+**Full Description:**
+
+Dive into a superior reading experience with EPUB & PDF Reader, the all-in-one solution for your digital library. Whether you're a student, a professional, or an avid reader, our app provides a clean, intuitive interface to help you focus on what matters: the content.
+
+Key Features:
+
+*   **Universal Compatibility:** Open and read both EPUB and PDF files with a single application.
+*   **File Manager Integration:** Easily browse and open files directly from your device's storage.
+*   **Optimized for Performance:** Enjoy smooth scrolling and fast-loading documents, even for large files.
+*   **Clean, Distraction-Free UI:** A minimalist design keeps you focused on your reading without unnecessary clutter.
+*   **Lightweight & Fast:** The application is designed to be quick and responsive, ensuring a hassle-free experience.
+
+**Keywords (for search optimization):**
+EPUB reader, PDF viewer, ebook reader, document manager, read books, PDF opener, book app, file reader, Windows reader
+
+**What's New in This Version:**
+
+*   Initial release of our brand-new Windows application!
+*   Added support for monetization through unobtrusive background tasks.
+
+---
+
+*Please review and edit these details to best fit your brand and voice.*

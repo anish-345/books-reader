@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_html/flutter_html.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/constants/text_styles.dart';
+import '../../../data/models/annotation.dart';
 import '../../../data/models/book_file_v2.dart';
 import '../../../data/models/reading_progress.dart';
-import '../../../services/reading_history_service.dart';
+import '../../../services/annotation_service.dart';
 import '../../../services/epub_parser_service.dart';
-import '../../../services/ad_frequency_service.dart';
-import '../../../widgets/admob_banner_widget.dart';
+import '../../../services/reading_history_service.dart';
 
 class EpubReaderV2 extends StatefulWidget {
   final BookFileV2 book;
@@ -28,6 +29,9 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
   bool _showControls = true;
   double _fontSize = 16.0;
   bool _isLoading = true;
+  List<Annotation> _annotations = [];
+  String _selectedText = '';
+  final Uuid _uuid = const Uuid();
 
   EpubBookData? _epubBook;
   List<EpubChapterData> _chapters = [];
@@ -40,6 +44,7 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
     super.initState();
     _pageController = PageController();
     _loadEpubFile();
+    _loadAnnotations();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
@@ -50,7 +55,6 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
     _pageController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
-    AdFrequencyService().onReaderExit();
     super.dispose();
   }
 
@@ -68,10 +72,11 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
       }
 
       final progress = await ReadingHistoryService.getProgress(widget.book.id);
-      
+
       int startingChapter = widget.initialPage ?? 0;
       if (widget.initialPage == null && progress != null) {
-          startingChapter = (progress.currentPage - 1).clamp(0, epubData.chapters.length - 1);
+        startingChapter =
+            (progress.currentPage - 1).clamp(0, epubData.chapters.length - 1);
       }
 
       setState(() {
@@ -81,13 +86,35 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
         _pageController = PageController(initialPage: _currentChapter);
         _isLoading = false;
       });
-
     } catch (e) {
       setState(() {
         _errorMessage = 'Error loading EPUB: $e';
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _loadAnnotations() async {
+    final annotations = await AnnotationService.getAnnotationsForBook(widget.book.id);
+    if (mounted) {
+      setState(() {
+        _annotations = annotations;
+      });
+    }
+  }
+
+  Future<void> _addAnnotation(AnnotationType type, String text) async {
+    final newAnnotation = Annotation(
+      id: _uuid.v4(),
+      bookId: widget.book.id,
+      type: type,
+      text: text,
+      page: _currentChapter,
+      chapterId: _chapters[_currentChapter].title,
+      createdAt: DateTime.now(),
+    );
+    await AnnotationService.addAnnotation(newAnnotation);
+    _loadAnnotations(); // Refresh the list
   }
 
   Future<void> _saveProgress() async {
@@ -104,8 +131,8 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
     }
   }
 
-  void _handleKeyEvent(RawKeyEvent event) {
-    if (event is RawKeyDownEvent) {
+  void _handleKeyEvent(KeyEvent event) {
+    if (event is KeyDownEvent) {
       if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
         _nextChapter();
       } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
@@ -120,13 +147,15 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
 
   void _nextChapter() {
     if (_currentChapter < _chapters.length - 1) {
-      _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.ease);
+      _pageController.nextPage(
+          duration: const Duration(milliseconds: 300), curve: Curves.ease);
     }
   }
 
   void _previousChapter() {
     if (_currentChapter > 0) {
-      _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.ease);
+      _pageController.previousPage(
+          duration: const Duration(milliseconds: 300), curve: Curves.ease);
     }
   }
 
@@ -150,9 +179,44 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
     setState(() => _showControls = !_showControls);
   }
 
+  String _getHtmlData(String content, int chapterIndex) {
+    String htmlData = content;
+    final chapterAnnotations = _annotations.where((a) => a.page == chapterIndex).toList();
+
+    chapterAnnotations.sort((a, b) => b.text.length.compareTo(a.text.length));
+
+    for (var annotation in chapterAnnotations) {
+      String tag;
+      switch (annotation.type) {
+        case AnnotationType.highlight:
+          tag = 'mark';
+          break;
+        case AnnotationType.underline:
+          tag = 'u';
+          break;
+        case AnnotationType.strikethrough:
+          tag = 's';
+          break;
+        case AnnotationType.squiggly:
+          tag = 'em'; // Use a standard tag and style it
+          break;
+      }
+      final annotatedText = '<$tag>${annotation.text}</$tag>';
+      
+      if (htmlData.contains(annotatedText)) {
+        continue;
+      }
+
+      htmlData = htmlData.replaceAll(annotation.text, annotatedText);
+    }
+
+    return htmlData;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final Color backgroundColor = _isDarkMode ? const Color(0xFF1A1A1A) : Colors.white;
+    final Color backgroundColor =
+        _isDarkMode ? const Color(0xFF1A1A1A) : Colors.white;
 
     if (_isLoading) {
       return Scaffold(
@@ -164,15 +228,18 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
     if (_errorMessage.isNotEmpty || _chapters.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: Text(widget.book.displayName)),
-        body: Center(child: Text(_errorMessage.isNotEmpty ? _errorMessage : 'No content found.')),
+        body: Center(
+            child: Text(_errorMessage.isNotEmpty
+                ? _errorMessage
+                : 'No content found.')),
       );
     }
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: RawKeyboardListener(
+      body: KeyboardListener(
         focusNode: _focusNode,
-        onKey: _handleKeyEvent,
+        onKeyEvent: _handleKeyEvent,
         child: Stack(
           children: [
             GestureDetector(
@@ -195,55 +262,216 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
           ],
         ),
       ),
-      bottomNavigationBar: !_showControls ? const AdMobBannerWidget() : null,
+      bottomNavigationBar: !_showControls ? const SizedBox.shrink() : null,
+    );
+  }
+
+  Widget _buildContextMenuItem({
+    required BuildContext context,
+    required IconData icon,
+    required String text,
+    required VoidCallback onPressed,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = isDark ? Colors.white : Colors.black87;
+
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: color,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        alignment: Alignment.centerLeft,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 16),
+          Text(text),
+        ],
+      ),
     );
   }
 
   Widget _buildChapterContent(int index) {
     final chapter = _chapters[index];
+    final htmlData = _getHtmlData(EpubParserService.cleanHtmlContent(chapter.content), index);
+
     return SingleChildScrollView(
       controller: _scrollController,
       padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 80),
-          Text(chapter.title, style: TextStyle(fontSize: _fontSize + 4, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 24),
-          Html(
-            data: EpubParserService.cleanHtmlContent(chapter.content),
-            style: {
-              "body": Style(fontSize: FontSize(_fontSize), fontFamily: 'serif', lineHeight: const LineHeight(1.6)),
-            },
-          ),
-          const SizedBox(height: 100),
-        ],
+      child: SelectionArea(
+        onSelectionChanged: (selected) {
+          if (selected != null && selected.plainText.isNotEmpty) {
+            _selectedText = selected.plainText;
+          } else {
+            _selectedText = '';
+          }
+        },
+        contextMenuBuilder: (context, selectableRegionState) {
+          if (_selectedText.isEmpty) {
+            return const SizedBox.shrink();
+          }
+
+          final capturedText = _selectedText;
+          final anchors = selectableRegionState.contextMenuAnchors;
+          const double menuHeight = 240;
+          const double menuWidth = 180;
+
+          return Stack(
+            children: [
+              Positioned(
+                top: anchors.primaryAnchor.dy - menuHeight,
+                left: anchors.primaryAnchor.dx - (menuWidth / 2),
+                child: Material(
+                  elevation: 4.0,
+                  borderRadius: BorderRadius.circular(8),
+                  clipBehavior: Clip.antiAlias,
+                  child: Container(
+                    width: menuWidth,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildContextMenuItem(
+                          context: context,
+                          icon: Icons.content_copy,
+                          text: 'Copy',
+                          onPressed: () {
+                            selectableRegionState.hideToolbar();
+                            Clipboard.setData(ClipboardData(text: capturedText));
+                          },
+                        ),
+                        _buildContextMenuItem(
+                          context: context,
+                          icon: Icons.edit,
+                          text: 'Highlight',
+                          onPressed: () {
+                            selectableRegionState.hideToolbar();
+                            _addAnnotation(AnnotationType.highlight, capturedText);
+                          },
+                        ),
+                        _buildContextMenuItem(
+                          context: context,
+                          icon: Icons.format_underline,
+                          text: 'Underline',
+                          onPressed: () {
+                            selectableRegionState.hideToolbar();
+                            _addAnnotation(AnnotationType.underline, capturedText);
+                          },
+                        ),
+                        _buildContextMenuItem(
+                          context: context,
+                          icon: Icons.strikethrough_s,
+                          text: 'Strikethrough',
+                          onPressed: () {
+                            selectableRegionState.hideToolbar();
+                            _addAnnotation(AnnotationType.strikethrough, capturedText);
+                          },
+                        ),
+                        _buildContextMenuItem(
+                          context: context,
+                          icon: Icons.format_color_text, // A better icon for squiggly
+                          text: 'Squiggly',
+                          onPressed: () {
+                            selectableRegionState.hideToolbar();
+                            _addAnnotation(AnnotationType.squiggly, capturedText);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 80),
+            Text(chapter.title,
+                style: TextStyle(
+                    fontSize: _fontSize + 4, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            Html(
+              data: htmlData,
+              style: {
+                'body': Style(
+                    fontSize: FontSize(_fontSize),
+                    fontFamily: 'serif',
+                    lineHeight: const LineHeight(1.6)),
+                'mark': Style(
+                  backgroundColor: Colors.yellow.withOpacity(0.5),
+                ),
+                'u': Style(
+                  textDecoration: TextDecoration.underline,
+                  textDecorationColor: Colors.red,
+                  textDecorationThickness: 2,
+                ),
+                's': Style(
+                  textDecoration: TextDecoration.lineThrough,
+                ),
+                'em': Style(
+                  fontStyle: FontStyle.normal, // Override italic
+                  textDecoration: TextDecoration.underline,
+                  textDecorationStyle: TextDecorationStyle.wavy,
+                  textDecorationColor: Colors.blue,
+                ),
+              },
+            ),
+            const SizedBox(height: 100),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildTopControls() {
     return Positioned(
-      top: 0, left: 0, right: 0,
+      top: 0,
+      left: 0,
+      right: 0,
       child: Container(
-        decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black.withOpacity(0.7), Colors.transparent])),
+        decoration: BoxDecoration(
+            gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.black.withAlpha(178), Colors.transparent])),
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
               children: [
-                IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.of(context).pop()),
+                IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop()),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_epubBook?.title ?? widget.book.displayName, style: AppTextStyles.h6.copyWith(color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      if (_epubBook?.author != null && _epubBook!.author.isNotEmpty) Text('by ${_epubBook!.author}', style: AppTextStyles.labelSmall.copyWith(color: Colors.white70), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(_epubBook?.title ?? widget.book.displayName,
+                          style: AppTextStyles.h6.copyWith(color: Colors.white),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                      if (_epubBook?.author != null &&
+                          _epubBook!.author.isNotEmpty)
+                        Text('by ${_epubBook!.author}',
+                            style: AppTextStyles.labelSmall
+                                .copyWith(color: Colors.white70),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
-                IconButton(icon: const Icon(Icons.list, color: Colors.white), onPressed: _showChapterList),
-                IconButton(icon: const Icon(Icons.settings, color: Colors.white), onPressed: _showSettings),
+                IconButton(
+                    icon: const Icon(Icons.list, color: Colors.white),
+                    onPressed: _showChapterList),
+                IconButton(
+                    icon: const Icon(Icons.settings, color: Colors.white),
+                    onPressed: _showSettings),
               ],
             ),
           ),
@@ -254,12 +482,18 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
 
   Widget _buildBottomChapterIndicator() {
     return Positioned(
-      bottom: 20, left: 0, right: 0,
+      bottom: 20,
+      left: 0,
+      right: 0,
       child: Center(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(color: const Color(0xFF38A169).withOpacity(0.9), borderRadius: BorderRadius.circular(20)),
-          child: Text('${_currentChapter + 1} of ${_chapters.length} chapters', style: AppTextStyles.labelMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w500)),
+          decoration: BoxDecoration(
+              color: const Color(0xFF38A169).withAlpha(230),
+              borderRadius: BorderRadius.circular(20)),
+          child: Text('${_currentChapter + 1} of ${_chapters.length} chapters',
+              style: AppTextStyles.labelMedium
+                  .copyWith(color: Colors.white, fontWeight: FontWeight.w500)),
         ),
       ),
     );
@@ -273,7 +507,7 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Chapters', style: AppTextStyles.h5),
+            const Text('Chapters', style: AppTextStyles.h5),
             const SizedBox(height: 16),
             Expanded(
               child: ListView.builder(
@@ -281,11 +515,19 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
                 itemBuilder: (context, index) {
                   final chapter = _chapters[index];
                   return ListTile(
-                    title: Text(chapter.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                    leading: CircleAvatar(backgroundColor: index == _currentChapter ? const Color(0xFF38A169) : Colors.grey, child: Text('${index + 1}', style: const TextStyle(color: Colors.white))),
+                    title: Text(chapter.title,
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                    leading: CircleAvatar(
+                        backgroundColor: index == _currentChapter
+                            ? const Color(0xFF38A169)
+                            : Colors.grey,
+                        child: Text('${index + 1}',
+                            style: const TextStyle(color: Colors.white))),
                     onTap: () {
                       Navigator.pop(context);
-                      _pageController.animateToPage(index, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                      _pageController.animateToPage(index,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut);
                     },
                   );
                 },
@@ -306,7 +548,7 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Reading Settings', style: AppTextStyles.h5),
+              const Text('Reading Settings', style: AppTextStyles.h5),
               const SizedBox(height: 16),
               ListTile(
                 title: const Text('Font Size'),
@@ -326,17 +568,47 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
               if (_epubBook != null) ...[
                 const Divider(),
                 ListTile(
-                  title: const Text('Book Information', style: TextStyle(fontWeight: FontWeight.bold)),
+                  title: const Text('Book Information',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (_epubBook!.author.isNotEmpty) Text('Author: ${_epubBook!.author}'),
+                      if (_epubBook!.author.isNotEmpty)
+                        Text('Author: ${_epubBook!.author}'),
                       Text('Chapters: ${_chapters.length}'),
-                      if (_epubBook!.description.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_epubBook!.description, maxLines: 3, overflow: TextOverflow.ellipsis)),
+                      if (_epubBook!.description.isNotEmpty)
+                        Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(_epubBook!.description,
+                                maxLines: 3, overflow: TextOverflow.ellipsis)),
                     ],
                   ),
                 ),
               ],
+              if (_annotations.isNotEmpty) ...[
+                const Divider(),
+                const Text('Annotations', style: AppTextStyles.h6),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _annotations.length,
+                    itemBuilder: (context, index) {
+                      final annotation = _annotations[index];
+                      return ListTile(
+                        title: Text(annotation.text, maxLines: 2, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(
+                            'Chapter: ${annotation.chapterId}, Type: ${annotation.type.toString().split('.').last}'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () async {
+                            await AnnotationService.deleteAnnotation(annotation.id);
+                            _loadAnnotations();
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ]
             ],
           ),
         ),
