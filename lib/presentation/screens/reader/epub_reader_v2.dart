@@ -1,11 +1,16 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:book_reader/data/models/reading_progress.dart';
+import 'package:book_reader/services/reading_history_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_html/flutter_html.dart';
+import 'package:uuid/uuid.dart';
+import 'package:webview_all/webview_all.dart';
 
 import '../../../core/constants/text_styles.dart';
 import '../../../data/models/book_file_v2.dart';
-import '../../../data/models/reading_progress.dart';
-import '../../../services/reading_history_service.dart';
+import '../../../models/annotation.dart';
+import '../../../services/annotation_service.dart';
 import '../../../services/epub_parser_service.dart';
 
 class EpubReaderV2 extends StatefulWidget {
@@ -19,215 +24,220 @@ class EpubReaderV2 extends StatefulWidget {
 }
 
 class _EpubReaderV2State extends State<EpubReaderV2> {
-  late PageController _pageController;
-  final ScrollController _scrollController = ScrollController();
-  final FocusNode _focusNode = FocusNode();
-  int _currentChapter = 0;
+  WebviewController? _webviewController;
+  String _cfi = '';
   bool _showControls = true;
-  double _fontSize = 16.0;
-  bool _isLoading = true;
-
-  EpubBookData? _epubBook;
+  int _currentChapter = 0;
   List<EpubChapterData> _chapters = [];
-  String _errorMessage = '';
-
-  bool get _isDarkMode => Theme.of(context).brightness == Brightness.dark;
+  final FocusNode _focusNode = FocusNode();
+  String? _initialCfi;
+  double _fontSize = 16.0;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
-    _loadEpubFile();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    _loadReadingProgress();
   }
 
   @override
   void dispose() {
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    _saveProgress();
-    _pageController.dispose();
-    _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
-  Future<void> _loadEpubFile() async {
-    try {
-      setState(() => _isLoading = true);
-
-      final epubData = await EpubParserService.parseEpubFile(widget.book.path);
-      if (epubData == null || epubData.chapters.isEmpty) {
-        setState(() {
-          _errorMessage = 'Failed to load EPUB file or no content found.';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      final progress = await ReadingHistoryService.getProgress(widget.book.id);
-
-      int startingChapter = widget.initialPage ?? 0;
-      if (widget.initialPage == null && progress != null) {
-        startingChapter =
-            (progress.currentPage - 1).clamp(0, epubData.chapters.length - 1);
-      }
-
+  Future<void> _loadReadingProgress() async {
+    final progress = await ReadingHistoryService.getProgress(widget.book.id);
+    if (progress != null) {
       setState(() {
-        _epubBook = epubData;
-        _chapters = epubData.chapters;
-        _currentChapter = startingChapter;
-        _pageController = PageController(initialPage: _currentChapter);
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error loading EPUB: $e';
-        _isLoading = false;
+        _initialCfi = progress.currentChapterId;
       });
     }
-  }
-
-  Future<void> _saveProgress() async {
-    if (_chapters.isNotEmpty) {
-      final progress = ReadingProgress(
-        id: '${widget.book.id}_progress',
-        bookId: widget.book.id,
-        currentPage: _currentChapter + 1,
-        progress: (_currentChapter + 1) / _chapters.length,
-        lastReadAt: DateTime.now(),
-        currentChapterId: _chapters[_currentChapter].title,
-      );
-      await ReadingHistoryService.saveProgress(progress);
-    }
-  }
-
-  void _handleKeyEvent(KeyEvent event) {
-    if (event is KeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-        _nextChapter();
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-        _previousChapter();
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-        _scrollDown();
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-        _scrollUp();
-      }
-    }
-  }
-
-  void _nextChapter() {
-    if (_currentChapter < _chapters.length - 1) {
-      _pageController.nextPage(
-          duration: const Duration(milliseconds: 300), curve: Curves.ease);
-    }
-  }
-
-  void _previousChapter() {
-    if (_currentChapter > 0) {
-      _pageController.previousPage(
-          duration: const Duration(milliseconds: 300), curve: Curves.ease);
-    }
-  }
-
-  void _scrollDown() {
-    _scrollController.animateTo(
-      _scrollController.offset + 100,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.ease,
-    );
-  }
-
-  void _scrollUp() {
-    _scrollController.animateTo(
-      _scrollController.offset - 100,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.ease,
-    );
-  }
-
-  void _toggleControls() {
-    setState(() => _showControls = !_showControls);
   }
 
   @override
   Widget build(BuildContext context) {
-    final Color backgroundColor =
-        _isDarkMode ? const Color(0xFF1A1A1A) : Colors.white;
-
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: backgroundColor,
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (_errorMessage.isNotEmpty || _chapters.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(title: Text(widget.book.displayName)),
-        body: Center(
-            child: Text(_errorMessage.isNotEmpty
-                ? _errorMessage
-                : 'No content found.')),
-      );
-    }
-
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: KeyboardListener(
-        focusNode: _focusNode,
-        onKeyEvent: _handleKeyEvent,
-        child: Stack(
+    return KeyboardListener(
+      focusNode: _focusNode,
+      onKeyEvent: (event) {
+        if (event is KeyDownEvent) {
+          if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+            _webviewController?.runJavaScript('rendition.next()');
+          } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+            _webviewController?.runJavaScript('rendition.prev()');
+          }
+        }
+      },
+      child: Scaffold(
+        body: Stack(
           children: [
-            GestureDetector(
-              onTap: () {
-                FocusScope.of(context).requestFocus(_focusNode);
-                _toggleControls();
+            FutureBuilder<String>(
+              future: _getHtmlContent(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return Webview(
+                    onWebviewCreated: (controller) {
+                      _webviewController = controller;
+                      _webviewController!.loadUrl(Uri.dataFromString(
+                        snapshot.data!,
+                        mimeType: 'text/html',
+                        encoding: Encoding.getByName('utf-8'),
+                      ).toString());
+                    },
+                    javascriptChannels: {
+                      JavascriptChannel(
+                        name: 'AnnotationChannel',
+                        onMessageReceived: (message) {
+                          final selectionData = jsonDecode(message.message);
+                          _showContextMenu(selectionData);
+                        },
+                      ),
+                      JavascriptChannel(
+                        name: 'RelocatedChannel',
+                        onMessageReceived: (message) {
+                          final cfi = message.message;
+                          _saveProgress(cfi);
+                        },
+                      ),
+                    },
+                  );
+                } else {
+                  return const Center(child: CircularProgressIndicator());
+                }
               },
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: _chapters.length,
-                onPageChanged: (index) {
-                  setState(() => _currentChapter = index);
-                  _saveProgress();
-                },
-                itemBuilder: (context, index) => _buildChapterContent(index),
-              ),
             ),
             if (_showControls) _buildTopControls(),
             if (_showControls) _buildBottomChapterIndicator(),
           ],
         ),
       ),
-      bottomNavigationBar: !_showControls ? const SizedBox.shrink() : null,
     );
   }
 
-  Widget _buildChapterContent(int index) {
-    final chapter = _chapters[index];
-    return SingleChildScrollView(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 80),
-          Text(chapter.title,
-              style: TextStyle(
-                  fontSize: _fontSize + 4, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 24),
-          Html(
-            data: EpubParserService.cleanHtmlContent(chapter.content),
-            style: {
-              "body": Style(
-                  fontSize: FontSize(_fontSize),
-                  fontFamily: 'serif',
-                  lineHeight: const LineHeight(1.6)),
-            },
+  Future<String> _getHtmlContent() async {
+    final epubData = await EpubParserService.parseEpubFile(widget.book.path);
+    _chapters = epubData?.chapters ?? [];
+    final js = await rootBundle.loadString('assets/js/epub_reader.js');
+    final jszip = await rootBundle.loadString('assets/js/jszip.min.js');
+    final epubjs = await rootBundle.loadString('assets/js/epub.min.js');
+    final annotations = await AnnotationService.getAnnotationsForBook(widget.book.id);
+    final annotationsJson = jsonEncode(annotations.map((a) => a.toJson()).toList());
+    final bookData = await File(widget.book.path).readAsBytes();
+    final bookDataBase64 = base64Encode(bookData);
+
+    String html = await rootBundle.loadString('assets/epub_reader.html');
+    html = html.replaceAll('{{book_data}}', bookDataBase64);
+    html = html.replaceAll('{{annotations}}', annotationsJson);
+    html = html.replaceAll('{{js}}', js);
+    html = html.replaceAll('{{jszip}}', jszip);
+    html = html.replaceAll('{{epubjs}}', epubjs);
+    html = html.replaceAll('{{initial_cfi}}', _initialCfi ?? '');
+    return html;
+  }
+
+  void _showContextMenu(Map<String, dynamic> selectionData) {
+    _cfi = selectionData['cfi'];
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.copy),
+                title: const Text('Copy'),
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: selectionData['text']));
+                  Navigator.of(context).pop();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.highlight),
+                title: const Text('Highlight'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _showColorPalette(context, (color) {
+                    _addAnnotation(AnnotationType.highlight, color.value);
+                  });
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.format_underline),
+                title: const Text('Underline'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _addAnnotation(AnnotationType.underline,
+                      Theme.of(context).colorScheme.onBackground.value);
+                },
+              ),
+            ],
           ),
-          const SizedBox(height: 100),
-        ],
+        );
+      },
+    );
+  }
+
+  void _showColorPalette(
+      BuildContext context, void Function(Color) onColorSelected) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: [
+              _buildColorOption(Colors.yellow, onColorSelected),
+              _buildColorOption(Colors.green, onColorSelected),
+              _buildColorOption(Colors.blue, onColorSelected),
+              _buildColorOption(Colors.red, onColorSelected),
+              _buildColorOption(Colors.purple, onColorSelected),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildColorOption(
+      Color color, void Function(Color) onColorSelected) {
+    return GestureDetector(
+      onTap: () {
+        onColorSelected(color);
+        Navigator.of(context).pop();
+      },
+      child: CircleAvatar(
+        backgroundColor: color,
+        radius: 24,
       ),
     );
+  }
+
+  void _addAnnotation(AnnotationType type, int color) {
+    final annotation = Annotation(
+      id: const Uuid().v4(),
+      bookId: widget.book.id,
+      cfi: _cfi,
+      type: type,
+      color: color,
+      createdAt: DateTime.now(),
+    );
+    AnnotationService.saveAnnotation(annotation);
+    _webviewController
+        ?.runJavaScript('window.applyAnnotation("$_cfi", "${type.name}", $color)');
+  }
+
+  Future<void> _saveProgress(String cfi) async {
+    final progress = ReadingProgress(
+      id: '${widget.book.id}_progress',
+      bookId: widget.book.id,
+      currentPage: _currentChapter + 1,
+      progress: (_currentChapter + 1) / _chapters.length,
+      lastReadAt: DateTime.now(),
+      currentChapterId: cfi,
+    );
+    await ReadingHistoryService.saveProgress(progress);
   }
 
   Widget _buildTopControls() {
@@ -250,21 +260,11 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
                     onPressed: () => Navigator.of(context).pop()),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(_epubBook?.title ?? widget.book.displayName,
-                          style: AppTextStyles.h6.copyWith(color: Colors.white),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                      if (_epubBook?.author != null &&
-                          _epubBook!.author.isNotEmpty)
-                        Text('by ${_epubBook!.author}',
-                            style: AppTextStyles.labelSmall
-                                .copyWith(color: Colors.white70),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                    ],
+                  child: Text(
+                    widget.book.displayName,
+                    style: AppTextStyles.h6.copyWith(color: Colors.white),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 IconButton(
@@ -325,10 +325,9 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
                         child: Text('${index + 1}',
                             style: const TextStyle(color: Colors.white))),
                     onTap: () {
+                      _webviewController?.runJavaScript(
+                          'rendition.display("${chapter.href}")');
                       Navigator.pop(context);
-                      _pageController.animateToPage(index,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut);
                     },
                   );
                 },
@@ -361,31 +360,14 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
                   activeColor: const Color(0xFF38A169),
                   label: _fontSize.round().toString(),
                   onChanged: (value) {
-                    setModalState(() => _fontSize = value);
-                    setState(() => _fontSize = value);
+                    setModalState(() {
+                      _fontSize = value;
+                    });
+                    _webviewController?.runJavaScript(
+                        'rendition.themes.fontSize("${value}px")');
                   },
                 ),
               ),
-              if (_epubBook != null) ...[
-                const Divider(),
-                ListTile(
-                  title: const Text('Book Information',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (_epubBook!.author.isNotEmpty)
-                        Text('Author: ${_epubBook!.author}'),
-                      Text('Chapters: ${_chapters.length}'),
-                      if (_epubBook!.description.isNotEmpty)
-                        Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(_epubBook!.description,
-                                maxLines: 3, overflow: TextOverflow.ellipsis)),
-                    ],
-                  ),
-                ),
-              ],
             ],
           ),
         ),

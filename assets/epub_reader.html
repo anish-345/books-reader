@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="assets/js/jszip.min.js"></script>
+    <script src="assets/js/epub.min.js"></script>
+  </head>
+  <body>
+    <div id="area"></div>
+    <script>
+      const bookData = atob("{{book_data}}");
+      const book = ePub(bookData, { encoding: "binary" });
+      var rendition = book.renderTo("area", { flow: "paginated", width: "100%", height: "100%" });
+      rendition.display("{{initial_cfi}}");
+
+      rendition.on('rendered', function(section) {
+        _currentChapter = section.index;
+        const annotations = {{annotations}};
+        annotations.forEach(annotation => {
+          window.applyAnnotation(annotation.cfi, annotation.type, annotation.color);
+        });
+      });
+
+      {{js}}
+    </script>
+  </body>
+</html>
