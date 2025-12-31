@@ -5,7 +5,8 @@ import 'package:book_reader/services/reading_history_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
-import 'package:webview_all/webview_all.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_windows/webview_windows.dart';
 
 import '../../../core/constants/text_styles.dart';
 import '../../../data/models/book_file_v2.dart';
@@ -74,32 +75,61 @@ class _EpubReaderV2State extends State<EpubReaderV2> {
               future: _getHtmlContent(),
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
-                  return Webview(
-                    onWebviewCreated: (controller) {
-                      _webviewController = controller;
-                      _webviewController!.loadUrl(Uri.dataFromString(
-                        snapshot.data!,
-                        mimeType: 'text/html',
-                        encoding: Encoding.getByName('utf-8'),
-                      ).toString());
-                    },
-                    javascriptChannels: {
-                      JavascriptChannel(
-                        name: 'AnnotationChannel',
-                        onMessageReceived: (message) {
-                          final selectionData = jsonDecode(message.message);
-                          _showContextMenu(selectionData);
-                        },
-                      ),
-                      JavascriptChannel(
-                        name: 'RelocatedChannel',
-                        onMessageReceived: (message) {
-                          final cfi = message.message;
-                          _saveProgress(cfi);
-                        },
-                      ),
-                    },
-                  );
+                  if (Platform.isWindows) {
+                    return Webview(
+                      onWebviewCreated: (controller) {
+                        _webviewController = controller;
+                        _webviewController!.loadUrl(Uri.dataFromString(
+                          snapshot.data!,
+                          mimeType: 'text/html',
+                          encoding: Encoding.getByName('utf-8'),
+                        ).toString());
+                      },
+                      javascriptChannels: {
+                        JavascriptChannel(
+                          name: 'AnnotationChannel',
+                          onMessageReceived: (message) {
+                            final selectionData = jsonDecode(message.message);
+                            _showContextMenu(selectionData);
+                          },
+                        ),
+                        JavascriptChannel(
+                          name: 'RelocatedChannel',
+                          onMessageReceived: (message) {
+                            final cfi = message.message;
+                            _saveProgress(cfi);
+                          },
+                        ),
+                      },
+                    );
+                  } else {
+                    return WebView(
+                      onWebViewCreated: (controller) {
+                        _webviewController = controller;
+                        _webviewController!.loadUrl(Uri.dataFromString(
+                          snapshot.data!,
+                          mimeType: 'text/html',
+                          encoding: Encoding.getByName('utf-8'),
+                        ).toString());
+                      },
+                      javascriptChannels: {
+                        JavascriptChannel(
+                          name: 'AnnotationChannel',
+                          onMessageReceived: (message) {
+                            final selectionData = jsonDecode(message.message);
+                            _showContextMenu(selectionData);
+                          },
+                        ),
+                        JavascriptChannel(
+                          name: 'RelocatedChannel',
+                          onMessageReceived: (message) {
+                            final cfi = message.message;
+                            _saveProgress(cfi);
+                          },
+                        ),
+                      },
+                    );
+                  }
                 } else {
                   return const Center(child: CircularProgressIndicator());
                 }

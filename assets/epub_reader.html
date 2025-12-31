@@ -2,8 +2,8 @@
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="assets/js/jszip.min.js"></script>
-    <script src="assets/js/epub.min.js"></script>
+    <script>{{jszip}}</script>
+    <script>{{epubjs}}</script>
   </head>
   <body>
     <div id="area"></div>
@@ -14,7 +14,6 @@
       rendition.display("{{initial_cfi}}");
 
       rendition.on('rendered', function(section) {
-        _currentChapter = section.index;
         const annotations = {{annotations}};
         annotations.forEach(annotation => {
           window.applyAnnotation(annotation.cfi, annotation.type, annotation.color);

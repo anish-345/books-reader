@@ -29,7 +29,9 @@ dependencies:
 
   # Essential utilities
   archive: ^3.6.1
-  webview_all: ^0.5.2
+  webview_flutter: ^4.7.0
+  webview_windows: ^0.2.0
+  uuid: ^4.4.0
 
 dev_dependencies:
   flutter_test:
